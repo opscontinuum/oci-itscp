@@ -1,0 +1,15 @@
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+*.tfvars
+!example.tfvars
+*.log
+*.pem
+*.key
+wallet/
+evidence/*.csv
+evidence/*.json
+!evidence/.gitkeep
+.DS_Store
+Thumbs.db
