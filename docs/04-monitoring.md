@@ -24,7 +24,7 @@ These are the failure modes that do not announce themselves. Each has an alarm b
 
 ## 2. Alarm definitions
 
-Implemented with **OCI Monitoring** alarms → **OCI Notifications** topics. Definitions as code are planned in `terraform/modules/monitoring/` (not yet in this repository; see README §Status).
+Implemented with **OCI Monitoring** alarms → **OCI Notifications** topics. Definitions as code in `terraform/modules/monitoring/` (author-only, apply-locked; see README §Status).
 
 **Data Guard lag metrics require Database Management Diagnostics & Management to be enabled on the database.** They are emitted in the `oracle_oci_database` namespace, resource group `oracle_dataguard` — **not** the base `oci_database` namespace that ships without Diagnostics & Management [1].
 

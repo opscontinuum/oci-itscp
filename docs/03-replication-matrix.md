@@ -95,7 +95,7 @@ flowchart TD
 | **Oracle Data Guard** | Never tear down. Rebuilding a standby means a full duplication from the primary *(unverified: engineering judgement — the exact rebuild command was not confirmed against Oracle documentation in this revision)* — unprotected for the whole rebuild. |
 | Stopped-instance boot volumes | Still billed as storage *(unverified: engineering judgement; no documentation found in this revision)*. Terminating to reclaim it destroys the pilot light. |
 
-**Rule: tear down compute, never tear down replication.** Replica *storage* is a small fraction of the bill; replica *compute* is most of it. The scripts in `scripts/oci/` (and the planned `dr_posture` Terraform variable, see README §Status) are built around exactly this split — see `docs/05-cost-and-teardown.md`.
+**Rule: tear down compute, never tear down replication.** Replica *storage* is a small fraction of the bill; replica *compute* is most of it. The scripts in `scripts/oci/` and the apply-locked Terraform under `terraform/` are built around exactly this split — see `docs/05-cost-and-teardown.md`.
 
 ---
 

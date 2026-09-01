@@ -94,7 +94,7 @@ Template in `checklists/cost-model-template.md`. Line items to price:
 
 ```bash
 # Scheduled: hold WARM outside business hours and on weekends
-oci resource-scheduler schedule create ...   # terraform/modules/scheduler/ is planned; see README §Status
+oci resource-scheduler schedule create ...   # see terraform/modules/scheduler/ (author-only, apply-locked)
 
 # Manual: elevate ahead of a known threat window
 ./scripts/oci/set-dr-posture.sh --posture hot --reason "NHC track, ticket CHG0012345"

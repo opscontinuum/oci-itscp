@@ -32,8 +32,8 @@ Two availability domains in Ashburn, one region away in Phoenix. That split is d
 and is the central design argument of the plan (see below) — it separates the *likely*
 failure from the *catastrophic* one instead of compromising on a single mechanism for both.
 
-The worked example will continue to be built out: Terraform modules, Full Stack DR plan
-definitions, and sample evidence artifacts.
+The worked example now includes apply-locked Terraform (never applied) and Full Stack DR plan
+definitions; sample evidence artifacts and the test tiers in `docs/06` are still to come.
 
 ---
 
@@ -230,9 +230,18 @@ against a live estate — by construction, since the scenario is hypothetical.
 
 Planned build-out:
 
-- [ ] Terraform modules for the Phoenix estate and both Ashburn ADs
-- [ ] OCI Full Stack Disaster Recovery plan definitions and user-defined steps
-- [ ] OCI Monitoring alarm definitions as code (`docs/04-monitoring.md` §2)
+- [x] Terraform modules for the Phoenix estate and both Ashburn ADs — `terraform/`, **with caveat**:
+      author-only, never applied against a real tenancy (no credentials on this machine, none
+      committed here). Every resource is gated behind an explicit apply lock
+      (`unlock_apply` + a typed `spend_acknowledgement`, see `terraform/README.md` "Apply
+      lock") that defaults to zero resources. `terraform init -backend=false`,
+      `terraform fmt -recursive -check`, `terraform validate`, and `terraform test`
+      (`mock_provider "oci" {}`, no credentials) all pass; `plan`/`apply` were never run.
+- [x] OCI Full Stack Disaster Recovery plan definitions — `terraform/modules/fsdr/`: a DR
+      Protection Group peer pair plus the four plan types (Switchover, Failover, Start
+      Drill, Stop Drill). User-defined steps (the PowerShell Run Command scripts
+      themselves) are not yet written — see `docs/01-architecture.md` §6.
+- [x] OCI Monitoring alarm definitions as code (`docs/04-monitoring.md` §2) — `terraform/modules/monitoring/`
 - [ ] Illustrative sample evidence — a worked drill timing sheet and RPO attestation
 
 ## Scope and limitations
