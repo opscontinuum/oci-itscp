@@ -16,7 +16,7 @@ These drive the design. Confirm or correct before build — items marked **[MATE
 | A3 | EBS app tier runs on **Windows Server x64**, relinked with **MKS Toolkit** [45] (Doc ID 1330706.1 is the current 12.2-on-Windows note [1][2]; Cygwin appears only as an alternative in 12.1-era documentation, Doc ID 414992.1 [3][4], not in the current 12.2 tooling [45]) | Affects script language (PowerShell) and FSS mount strategy (§4.4) |
 | A4 | "Visualization tier" = BI / reporting presentation layer (OBIEE, Discoverer, Power BI gateway, or similar) | **[MATERIAL]** If it means *virtualization* (Hyper-V / VMware / OCVS), §4.5 is replaced by an OCVS-based design |
 | A5 | Database does **not** use Hybrid Columnar Compression (HCC) | If HCC is used, the standby storage must be Exadata, Oracle ZFS Storage Appliance, or Pillar Axiom/FS1 [5]. Whether HCC-compressed data becomes unreadable on unsupported storage is *(unverified: engineering judgement; no documentation found in this revision)* — validate before assuming a downgrade path to Base DB Service is closed |
-| A6 | Cross-region traffic rides **DRG + Remote Peering Connection** over the OCI backbone (not FastConnect / Internet) | Changes bandwidth guarantee and redo transport tuning (§5.3) |
+| A6 | Cross-region traffic rides **DRG + Remote Peering Connection** over the OCI backbone (not FastConnect / Internet). Oracle requires remote VCN peering for cross-region Data Guard on ExaDB-D: "If you want to configure Oracle Data Guard across regions, then you must configure remote virtual cloud network (VCN) peering between the primary and standby databases" [55]. **No bandwidth guarantee or SLA for the peering link was verified in this revision** *(unverified)*; the plan's RPO therefore rests on measured transport lag at period-close redo rates (`evidence/latency-baseline.md`), and a peering-link incident is a single event that degrades every cross-region replication tier at once while leaving the local SYNC leg and the Phoenix standby's last consistent state intact | Changes bandwidth guarantee and redo transport tuning (§5.3). A FastConnect or other alternate path is warranted only if the measured transport lag at period-close redo rates breaches the 30-second Tier-0 target |
 | A7 | Single production EBS instance (no multi-org split across regions) | Multi-instance changes the tiering map |
 
 ---
@@ -213,6 +213,8 @@ Example: 1 Gbps * 0.065 s = 8.1 MB  ->  SEND_BUF_SIZE / RECV_BUF_SIZE ~= 3 * BDP
 
 The minimum recommended socket buffer size is 3× the bandwidth-delay product [10]. Also set `SDU=65535` on both ends — this is Oracle's MAA-recommended value specifically "for synchronous transport only" [10], not the 19c protocol maximum, which is 2,097,152 bytes [35] — enable redo transport compression on the PHX leg (Advanced Compression option licence required, §4.1 [5]), and size standby redo logs identical to online redo logs with one extra log group per redo thread [36]. See `scripts/dataguard/tnsnames-tuning.md`.
 
+**The link itself.** Redo to Phoenix rides the Remote Peering Connection (assumption A6); the 1 Gbps in the worked example is illustrative, not a guarantee, and no bandwidth SLA for Remote Peering was read in this revision *(unverified)*. Size from the measured RTT and the measured period-close redo rate, alarm on transport lag (`docs/04-monitoring.md` §2), and treat a rising transport lag with flat apply lag as a link problem, not an apply problem. Failover does not depend on the link — RB-02 disables fast-start failover with `FORCE` from Phoenix precisely because the primary may be unreachable [46] — but failback and every reverse baseline do (RB-03).
+
 ---
 
 ## 6. Orchestration — OCI Full Stack Disaster Recovery
@@ -366,6 +368,10 @@ The following statements are engineering judgement with no supporting documentat
     Supports: "If you are using FSS, you can use the FSS file system synchronization, but be aware
     that it will only refresh the standby site once per hour. For our tests, we built scripts based
     on rsync" (§4.4). HTTP 403 to automated fetch; retrieved with a browser user agent and read.
+55. *Use Oracle Data Guard with Exadata Cloud Infrastructure.* Exadata Database Service on Dedicated
+    Infrastructure documentation, Oracle, accessed 2026-09-01.
+    <https://docs.oracle.com/en-us/iaas/exadatacloud/doc/using-data-guard-with-exacc.html> — Supports:
+    remote VCN peering is required for cross-region Data Guard (§1 A6).
 
 [1]: #references "MOS Doc ID 1330706.1 — unverifiable by URL (login-gated)"
 [2]: https://docs.oracle.com/cd/E26401_01/doc.122/e22950/T422699i4773.htm "Oracle E-Business Suite Installation Guide: Using Rapid Install, Release 12.2 — Oracle"
@@ -421,3 +427,4 @@ The following statements are engineering judgement with no supporting documentat
 [52]: https://docs.oracle.com/en-us/iaas/exadatacloud/doc/exa-service-desc.html "ExaDB-D service description"
 [53]: https://docs.oracle.com/en-us/iaas/tools/oci-cli/latest/oci_cli_docs/cmdref/db/database/convert-standby-database-type.html "OCI CLI — convert-standby-database-type"
 [54]: https://www.oracle.com/a/tech/docs/maaforebsonoci.pdf "MAA: Oracle E-Business Suite on OCI (July 2025)"
+[55]: https://docs.oracle.com/en-us/iaas/exadatacloud/doc/using-data-guard-with-exacc.html "Use Oracle Data Guard with Exadata Cloud Infrastructure"
