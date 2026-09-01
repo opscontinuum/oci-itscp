@@ -64,12 +64,12 @@ entries say so.
 
 | Plan element | ITIL 4 | NIST SP 800-34 Rev. 1 [2] | NIST SP 800-53 Rev. 5 CP family [10] | NIST CSF 2.0 [11] | Other NIST, DoD and federal |
 |---|---|---|---|---|---|
-| Tier workshop and MTD tiers (`docs/02`) | BIA | Step 2 "Conduct the business impact analysis (BIA)"; MTD/RTO/RPO definitions | CP-2 a.1 "Identifies essential mission and business functions and associated contingency requirements"; a.2 "Provides recovery objectives, restoration priorities, and metrics"; CP-2(3) | IDENTIFY | FIPS 199 availability impact LOW / MODERATE / HIGH sets the categorisation the tier answers [12]; CNSSI 1253 is the national-security-system categorisation and control-selection instruction, whose attachments carry the overlays *(listing read; text login-gated)* [14]; NIST SP 800-34 footnote states mission-essential-function systems "must be able to meet the function's MTD of 12 hours or less per FCD-1" [2] |
-| Preventive controls: SYNC standby, replication, immutable backups (`docs/01` §3–§4) | Risk reduction | Step 3 "Identify preventive controls" | CP-9 (system backup), CP-6 (alternate storage site) | PROTECT | DoD Cloud Computing SRG impact levels govern where DoD data may reside *(portal not readable; secondary sources only)* [15] |
-| Recovery strategy: Phoenix standby, postures, Full Stack DR (`docs/01`, RB-05) | Recovery option | Step 4 "Create contingency strategies"; cold / warm / hot site vocabulary | CP-7 (alternate processing site); CP-7(1) site "sufficiently separated from the primary processing site to reduce susceptibility to the same threats" | RECOVER | DoDI 8510.01: DoD systems "must be categorized in accordance with … CNSSI 1253 …, implement a corresponding set of security controls from NIST SP 800-53" *(2014 edition incl. Change 3 read from a Navy mirror; the 2022 reissue is not fetchable)* [16] |
-| Runbooks RB-01 to RB-05 | Disaster recovery plans | Step 5 "Develop an information system contingency plan" (ISCP) | CP-2 a.3–a.7, b–f; CP-10 (system recovery and reconstitution) | RC.RP-01 "The recovery portion of the incident response plan is executed once initiated from the incident response process" | DoDI 3020.26 *DoD Continuity Policy* *(cited by title and date only; not readable)* [17] |
-| Drills and evidence (RB-04, `evidence/`) | Exercising | Step 6 "Ensure plan testing, training, and exercises" | CP-4 (contingency plan testing) | GOVERN / IDENTIFY | RMF continuous monitoring (NIST SP 800-37 Rev. 2) [13] |
-| Maintenance and drift detection (`docs/04` §5) | Continual improvement | Step 7 "Ensure plan maintenance" | CP-2 d–f | GOVERN | — |
+| Tier workshop and MTD tiers (`docs/02`) | BIA | Step 2 "Conduct the business impact analysis (BIA)"; MTD/RTO/RPO definitions | CP-2 a.1 "Identifies essential mission and business functions and associated contingency requirements"; a.2 "Provides recovery objectives, restoration priorities, and metrics"; CP-2(3); CP-2(2) "Conduct capacity planning so that necessary capacity for information processing, telecommunications, and environmental support exists during contingency operations" (`docs/02` §4 capacity risk) | GOVERN — GV.OC-04 "Critical objectives, capabilities, and services that external stakeholders depend on or expect from the organization are understood and communicated"; GV.OC-05 "Outcomes, capabilities, and services that the organization depends on are understood and communicated" | FIPS 199 availability impact LOW / MODERATE / HIGH sets the categorisation the tier answers [12]; CNSSI 1253 is the national-security-system categorisation and control-selection instruction, whose attachments carry the overlays *(listing read; text login-gated)* [14]; NIST SP 800-34 footnote states mission-essential-function systems "must be able to meet the function's MTD of 12 hours or less per FCD-1" [2] |
+| Preventive controls: SYNC standby, replication, immutable backups (`docs/01` §3–§4) | Risk reduction | Step 3 "Identify preventive controls" | CP-9 (system backup), CP-6 (alternate storage site) | PROTECT — PR.DS-11 "Backups of data are created, protected, maintained, and tested" | DoD Cloud Computing SRG impact levels govern where DoD data may reside *(portal not readable; secondary sources only)* [15] |
+| Recovery strategy: Phoenix standby, postures, Full Stack DR (`docs/01`, RB-05) | Recovery option | Step 4 "Create contingency strategies"; cold / warm / hot site vocabulary | CP-7 (alternate processing site); CP-7(1) site "sufficiently separated from the primary processing site to reduce susceptibility to the same threats"; CP-8 "Establish alternate telecommunications services… for essential mission and business functions… when the primary telecommunications capabilities are unavailable" (assumption A6, DRG/remote-peering dependency, `docs/01` §1) | RECOVER | DoDI 8510.01: DoD systems "must be categorized in accordance with … CNSSI 1253 …, implement a corresponding set of security controls from NIST SP 800-53" *(2014 edition incl. Change 3 read from a Navy mirror; the 2022 reissue is not fetchable)* [16] |
+| Runbooks RB-01 to RB-05 | Disaster recovery plans | Step 5 "Develop an information system contingency plan" (ISCP) | CP-2 a.3–a.7, b–f; CP-10 (system recovery and reconstitution); CP-10(2) "Implement transaction recovery for systems that are transaction-based" — what Data Guard redo apply provides for an ERP database | RC.RP-01 "The recovery portion of the incident response plan is executed once initiated from the incident response process" | DoDI 3020.26 *DoD Continuity Policy* *(cited by title and date only; not readable)* [17] |
+| Drills and evidence (RB-04, `evidence/`) | Exercising | Step 6 "Ensure plan testing, training, and exercises" | CP-4 (contingency plan testing); CP-3 "Provide contingency training to system users consistent with assigned roles and responsibilities" (RB-04 §4's "primary DBA unavailable" scenario is a training control) | GOVERN / IDENTIFY — ID.IM-02 "Improvements are identified from security tests and exercises, including those done in coordination with suppliers and relevant third parties" | RMF continuous monitoring (NIST SP 800-37 Rev. 2) [13] |
+| Maintenance and drift detection (`docs/04` §5) | Continual improvement | Step 7 "Ensure plan maintenance" | CP-2 d–f | GOVERN — ID.IM-04 "Incident response plans and other cybersecurity plans that affect operations are established, communicated, maintained, and improved" | — |
 | Cyber-event recovery (ransomware) | — | — | CP-10; IR family | RECOVER, RESPOND | NIST SP 800-184 *Guide for Cybersecurity Event Recovery* [18] |
 
 **Design finding for federal or DoD use.** `us-ashburn-1` and `us-phoenix-1` are commercial
@@ -120,6 +120,8 @@ the question is whether an ITIL-literate reader will find what they expect.
 | T10 | `runbooks/RB-02-failover.md` §0 | "Incident detected" | Incident management: major incident | Say "major incident declared" as the entry condition to the decision gate; invocation is a decision taken *within* a major incident. | 🟡 |
 | T11 | `docs/01-architecture.md` §1 (assumptions), `docs/02` §5 caveats | Risks stated as assumptions and caveats | Risk management: risk register | See gap G2. | 🟡 |
 | T12 | All documents | No statement of how often the plan is reviewed | Continual improvement; ISO 22301 review requirement | See gap G3. | 🟡 |
+| T13 | `README.md`, `docs/01-architecture.md` §2–§3 ("Local HA"); `docs/02-mtd-tiers.md` §2 ("RTO ≤ 15 min local") | The intra-region SYNC leg's automatic failover is described as if it alone restores service after an AD-1 loss | Availability management: the practice covers the service, not one component of it | State explicitly that the local-region high-availability boundary requires a **two-AD application tier** (`WIN-EBSWEB02` and the stopped `WIN-EBSCM02` twin in AD-2, `WIN-BI01` in AD-2, a load balancer spanning both ADs) as well as the SYNC database standby; the database's automatic local failover does not by itself restore application availability if the app tier survives in only one AD. This sharpens T8's boundary (see G4). | 🟠 |
+| T14 | `docs/01-architecture.md` §3 ("RPO 0"); `docs/02-mtd-tiers.md` §2; `scripts/dataguard/tnsnames-tuning.md` §4 | RPO 0 on the local leg is stated without the condition under which it holds | Service continuity management: a recovery point objective is a target, and a target's stated conditions are part of stating it | Say wherever RPO 0 appears that it holds only while the configuration is synchronized: an unset `NetTimeout` leaves an AD-2 network fault's stall duration undefined, and fast-start failover cannot occur once the target standby is unsynchronized (`scripts/dataguard/tnsnames-tuning.md` §4; alarmed in `docs/04-monitoring.md` §1–§2). | 🟠 |
 
 ### Gaps (things ITIL 4 expects that the plan does not yet contain)
 
@@ -128,7 +130,7 @@ the question is whether an ITIL-literate reader will find what they expect.
 | G1 | **No minimum business continuity objective per tier.** The tiers say *when* each scope must be back, not *how much of it* is acceptable while WRT runs. | Finance signs off MTD; an auditor working to ISO 22301 will ask what the business agreed to operate with in the meantime (for example: order entry and cash application available, batch and reporting deferred). | Add an "MBCO" row to the tier table in `docs/02` §2 and a column to the workshop output table, populated in the BIA workshop. |
 | G2 | **No risk register.** Material assumptions (`docs/01` §1) and design risks (Exadata floor, HCC, RTT, egress) are scattered. | ITIL 4 risk management expects risks to be identified, assessed, owned and reviewed. | Add `checklists/risk-register.md` with owner, likelihood, impact and treatment; seed it from the [MATERIAL] assumptions and the unverified statements listed in each document's References section. |
 | G3 | **No review and maintenance cadence.** The workshop note says "re-run annually"; nothing says when the plan itself is reviewed. | Continuity plans decay; ISO 22301 requires planned review. | Add a "Plan maintenance" section to the README: annual review, review after every drill, after any material change (acquisition, re-platform, new regulation), and after any invocation. |
-| G4 | **No explicit availability-versus-continuity boundary** (T8). | The two practices have different owners and different measures (availability % versus MTD). | One paragraph in `docs/01` §3. |
+| G4 | **No explicit availability-versus-continuity boundary** (T8, T13). | The two practices have different owners and different measures (availability % versus MTD); T13 shows the boundary also has an unstated dependency (a two-AD app tier) that the local RTO claim relies on. | One paragraph in `docs/01` §3 covering both the ownership split and the two-AD app-tier dependency. |
 
 ---
 
@@ -167,9 +169,6 @@ risk and service-management audience that an IT service continuity plan exists t
 
 This document is a synthesis: every statement about product behaviour or a standard is derived
 from the sources below, and any statement that could not be traced to a source is marked as
-unverified.
-This document is a synthesis: every statement about product behaviour or a standard is derived
-from the sources below, and any statement that could not be traced to a source is marked as
 unverified. Numbers restart per document. The consolidated index is `docs/references.md`.
 
 1. *Glossary — ITIL 4 Foundation Official Training Materials.* PeopleCert (copy hosted by a
@@ -195,8 +194,11 @@ unverified. Numbers restart per document. The consolidated index is `docs/refere
 5. *Recovery Point Objective.* NIST CSRC glossary, accessed 2026-09-01.
    <https://csrc.nist.gov/glossary/term/Recovery_Point_Objective> — Supports: RPO (§1).
 6. *ITIL V4 Glossary* (third-party copy). pdfcoffee.com, undated, accessed 2026-09-01.
-   <https://pdfcoffee.com/itil-v4-glossary-pdf-free.html> — Supports: cross-check that the
-   BIA, RTO and RPO wording in [1] is identical in a second copy (§1). Corroborates only.
+   <https://pdfcoffee.com/itil-v4-glossary-pdf-free.html> — Supports: the fetched page
+   exposes only the glossary's term index (business impact analysis, recovery point
+   objective, recovery time objective, among others); the definition sentences are not in
+   the page text, so the wording in [1] cannot be cross-checked against it. Corroborates
+   existence of the terms only (§1).
 7. *ISO/IEC 27031:2025 — Cybersecurity — Information and communication technology readiness
    for business continuity.* ISO committee catalogue, edition 2, May 2025, accessed
    2026-09-01. <https://committee.iso.org/standard/80975.html> — Supports: title and scope;
@@ -217,10 +219,11 @@ unverified. Numbers restart per document. The consolidated index is `docs/refere
 10. *Security and Privacy Controls for Information Systems and Organizations, NIST SP 800-53
     Rev. 5 (Update 1).* NIST, September 2020 with updates through 2020-12-10, accessed
     2026-09-01. <https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-53r5.pdf>
-    — Supports: CP-2, CP-2(3), CP-4, CP-6, CP-7, CP-7(1), CP-9, CP-10 wording (§1a).
+    — Supports: CP-2, CP-2(2), CP-2(3), CP-3, CP-4, CP-6, CP-7, CP-7(1), CP-8, CP-9, CP-10,
+    CP-10(2) wording (§1a).
 11. *The NIST Cybersecurity Framework (CSF) 2.0, NIST CSWP 29.* NIST, 2024-02-26, accessed
     2026-09-01. <https://nvlpubs.nist.gov/nistpubs/CSWP/NIST.CSWP.29.pdf> — Supports: the six
-    Functions and RC.RP / RC.RP-01 (§1a).
+    Functions, RC.RP / RC.RP-01, GV.OC-04, GV.OC-05, ID.IM-02, ID.IM-04, PR.DS-11 (§1a).
 12. *Standards for Security Categorization of Federal Information and Information Systems,
     FIPS PUB 199.* NIST, February 2004, accessed 2026-09-01.
     <https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.199.pdf> — Supports: availability
@@ -232,8 +235,10 @@ unverified. Numbers restart per document. The consolidated index is `docs/refere
 14. *CNSS Instructions listing (CNSSI 1253, Security Categorization and Control Selection for
     National Security Systems).* Committee on National Security Systems, listing entries dated
     2022–2023, accessed 2026-09-01. <https://www.cnss.gov/CNSS/issuances/Instructions.cfm> —
-    Supports: existence and Rev. 5 alignment of CNSSI 1253 (§1a). Unverifiable by URL: the
-    document download sits behind a login/certificate wall; only the listing was read.
+    Supports: existence of CNSSI 1253 (release date 08/01/2022) (§1a). The listing says nothing
+    about NIST SP 800-53 Rev. 5 alignment; that clause is not claimed in the body text.
+    Unverifiable by URL: the document download sits behind a login/certificate wall; only the
+    listing was read.
 15. *DISA Issues Cloud Computing Security Requirements Guide.* ExecutiveGov, 2024-06-25,
     accessed 2026-09-01.
     <https://www.executivegov.com/articles/disa-issues-cloud-computing-security-requirements-guide>

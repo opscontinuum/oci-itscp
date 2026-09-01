@@ -1,3 +1,4 @@
+#ps1
 <#
 .SYNOPSIS
     Gracefully quiesces the Oracle E-Business Suite 12.2 application tier on a
@@ -6,10 +7,17 @@
 
 .DESCRIPTION
     Shutdown order is the reverse of startup and matters just as much:
-      1. Drain the node from the OCI Flexible Load Balancer (if -Drain)
+      1. Drain the node from THIS region's OCI Flexible Load Balancer (if -Drain)
       2. Stop Concurrent Managers FIRST and wait for running requests to finish
-      3. Stop Workflow Mailer
-      4. Stop web / forms services
+         (the Workflow notification mailer is a service component managed by the
+         concurrent-manager tier, so it stops with adcmctl.cmd stop)
+      3. Stop web / forms services
+
+    Environment: EBS_LB_OCID / EBS_LB_BACKENDSET name the load balancer this node is
+    behind (the region-local one); EBS_NODE_IP is the backend's IP address, because
+    the OCI CLI identifies a backend as <ip>:<port>. APPS_PWD supplies the APPS
+    password for adcmctl.cmd non-interactively (from OCI Vault via the step
+    environment). EBS_BI_STOP_CMD is the site-specific BI tier stop command.
 
     Stopping the web tier before the Concurrent Managers strands running requests.
     Stale FND_CONCURRENT_QUEUES / ICM rows on the far side are the usual result
@@ -34,11 +42,11 @@ function Warn ($m) { Write-Host "[WARN ] $m" -ForegroundColor Yellow }
 Info "Stop-EBSAppTier  node=$Node  grace=${GraceSeconds}s  $(Get-Date -Format o)"
 
 # --- 1. Drain from the load balancer ---------------------------------------
-if ($Drain -and $env:DR_LB_OCID -and $env:DR_LB_BACKENDSET) {
-    Info 'Draining node from OCI Flexible Load Balancer'
-    & oci lb backend update --load-balancer-id $env:DR_LB_OCID `
-        --backend-set-name $env:DR_LB_BACKENDSET `
-        --backend-name "$($env:COMPUTERNAME):$($env:EBS_HTTP_PORT)" `
+if ($Drain -and $env:EBS_LB_OCID -and $env:EBS_LB_BACKENDSET -and $env:EBS_NODE_IP) {
+    Info 'Draining node from the region-local OCI Flexible Load Balancer'
+    & oci lb backend update --load-balancer-id $env:EBS_LB_OCID `
+        --backend-set-name $env:EBS_LB_BACKENDSET `
+        --backend-name "$($env:EBS_NODE_IP):$($env:EBS_HTTP_PORT)" `
         --drain true --offline false --backup false --weight 1 --force
     Start-Sleep -Seconds 30   # allow in-flight HTTP sessions to complete
 }
@@ -61,7 +69,7 @@ Info "  captured -> inflight-requests-$stamp.txt"
 # --- 3. Stop Concurrent Managers FIRST --------------------------------------
 if ($Node -in @('ALL','CM')) {
     Info 'Stopping Concurrent Managers'
-    & cmd.exe /c "$EbsEnvScript && adcmctl.cmd stop"
+    & cmd.exe /c "$EbsEnvScript && adcmctl.cmd stop apps/$env:APPS_PWD"
 
     if ($GraceSeconds -gt 0) {
         Info "Waiting up to ${GraceSeconds}s for in-flight requests to complete"
@@ -83,12 +91,6 @@ exit
     }
 }
 
-# --- 4. Workflow Mailer -----------------------------------------------------
-if ($Node -in @('ALL','CM')) {
-    Info 'Stopping Workflow Mailer'
-    try { & cmd.exe /c "$EbsEnvScript && adworkflowmailer.cmd stop" } catch { Warn 'Workflow Mailer stop reported an error - continuing' }
-}
-
 # --- 5. Web / forms ---------------------------------------------------------
 if ($Node -in @('ALL','WEB')) {
     Info 'Stopping web/forms tier'
@@ -97,7 +99,8 @@ if ($Node -in @('ALL','WEB')) {
 
 if ($Node -in @('ALL','BI')) {
     Info 'Stopping BI/visualization tier'
-    try { & cmd.exe /c "$EbsEnvScript && stop_bi_services.cmd" } catch { Warn 'BI stop reported an error - continuing' }
+    if ($env:EBS_BI_STOP_CMD) { try { & cmd.exe /c "$EbsEnvScript && $env:EBS_BI_STOP_CMD" } catch { Warn 'BI stop reported an error - continuing' } }
+    else { Warn 'EBS_BI_STOP_CMD not set; BI tier stop is site-specific and was skipped' }
 }
 
 Info "Stop-EBSAppTier complete  $(Get-Date -Format o)"

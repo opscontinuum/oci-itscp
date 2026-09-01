@@ -58,6 +58,8 @@ LISTENER =
 DGMGRL> edit database 'EBSPROD_PHX' set property RedoCompression = 'ENABLE';
 DGMGRL> edit database 'EBSPROD_PHX' set property LogXptMode = 'ASYNC';
 DGMGRL> edit database 'EBSPROD_IAD2' set property LogXptMode = 'SYNC';
+DGMGRL> edit database 'EBSPROD_IAD2' set property NetTimeout = '<n>';
+DGMGRL> edit configuration set property FastStartFailoverThreshold = '<n>';
 DGMGRL> edit configuration set protection mode as MaxAvailability;
 ```
 
@@ -65,8 +67,60 @@ DGMGRL> edit configuration set protection mode as MaxAvailability;
 option — it is not included with Data Guard or Active Data Guard [4]. Confirm this is
 licensed before enabling it (`docs/05-cost-and-teardown.md` §4).
 
-`MaxAvailability` applies to the SYNC leg. The Phoenix member remains ASYNC, so a
-Phoenix outage never stalls the primary.
+`MaxAvailability` applies to the SYNC leg only. The Phoenix member remains ASYNC transport,
+which "is done asynchronously with respect to transaction commitment, so primary database
+performance is unaffected by the time required to transmit redo data and receive
+acknowledgment from a standby database" [8] — a Phoenix outage never stalls the primary.
+
+**On `NetTimeout`, set it explicitly — do not leave the default.** Under Maximum
+Availability, "Maximum Availability will wait a maximum of NET_TIMEOUT seconds for an
+acknowledgment from any of the standby databases, after which it will signal commit success
+to the application and move to the next transaction" [1]. Oracle "recommends that the
+NET_TIMEOUT attribute be specified whenever the synchronous redo transport mode is used, so
+that the maximum duration of a redo source database stall caused by a redo transport fault
+can be precisely controlled" [5]. An unset `NetTimeout` on `EBSPROD_IAD2` leaves that stall
+duration undefined during an AD-2 network fault, and with it the RPO-0 claim in
+`docs/01-architecture.md` §3. **What value to set is a measured, same-region decision, not
+a published Oracle default** *(unverified: engineering judgement; measure against your own
+network — see `docs/04-monitoring.md` §1–§2 for the alarm that watches the resulting
+synchronized/unsynchronized state)*.
+
+**On `FastStartFailoverThreshold`:** it bounds how long the observer waits, after losing
+contact with the primary, before initiating an automatic failover. The default is 30
+seconds; Oracle's recommended minimum is "6 to 15 seconds if the network is responsive and
+reliable. For primary Oracle RAC instances, add maximum clusterware heartbeat timeout (CSS
+miscount default for Linux is 30 seconds. For Exadata, you can use 2 seconds) to
+FastStartFailoverThreshold" [1], and the guide's summary table separately gives "Oracle RAC
+primary: Oracle RAC miscount + reconfiguration time + 30 seconds" [1].
+
+**Before a planned switchover to Phoenix, this configuration must be downgraded first.**
+Oracle's guidance for the analogous stretched-cluster case: "the protection level must be
+dropped to Maximum Performance prior to a switchover (planned event) as the level must be
+enforceable on the target in order to perform the transition" [1]:
+
+```
+DGMGRL> edit configuration set protection mode as MaxPerformance;
+DGMGRL> edit database 'EBSPROD_IAD2' set property LogXptMode = 'ASYNC';
+DGMGRL> disable fast_start failover;
+```
+
+Fast-start failover then stays **disabled** once Phoenix is primary — there is no
+Phoenix-local SYNC standby for it to target — and `EBSPROD_IAD2` runs ASYNC. `RB-01` and
+`RB-03` carry the full switchover and failback command sequence; this file only tunes the
+properties. **State plainly wherever RPO 0 appears: RPO 0 exists only while Ashburn is
+primary and `EBSPROD_IAD2` is synchronized. While Phoenix is primary, the database RPO is
+the ASYNC transport lag measured in `docs/04-monitoring.md` §2.**
+
+**Standby symmetry and the OCPU floor.** Redo apply performance depends on the standby
+having comparable resources to the primary: "Oracle recommends that the primary and standby
+database systems are symmetric, including equivalent I/O subsystems, memory, and CPU
+resources… redo apply performance also benefits greatly from symmetric primary and standby
+databases" [1]. `docs/05-cost-and-teardown.md` §2 holds the Phoenix standby at a low OCPU
+floor between drills; whether that floor sustains redo apply against a captured
+period-close redo rate has not been measured in this revision *(unverified: engineering
+judgement; no documentation found in this revision)*. `docs/04-monitoring.md` §2 alarms on
+apply lag rising while transport lag stays flat, the HA guide's stated signature of an apply
+bottleneck.
 
 ## 5. Standby redo logs
 
@@ -116,7 +170,7 @@ from the sources below, and any statement that could not be traced to a source i
 unverified. Numbers restart per document. The consolidated index is `docs/references.md`.
 
 1. *High Availability Overview and Best Practices.* Oracle Database 19c (F23691-56, July 14 2026), accessed 2026-09-01.
-   <https://docs.oracle.com/en/database/oracle/oracle-database/19/haovw/high-availability-overview-and-best-practices.pdf> — Supports: "The minimum recommended value for socket buffer sizes is 3*BDP, especially for a high-latency, high-bandwidth network."; "Set SDU Size to 65535 for Synchronous Transport Only" (§1, §2).
+   <https://docs.oracle.com/en/database/oracle/oracle-database/19/haovw/high-availability-overview-and-best-practices.pdf> — Supports: "The minimum recommended value for socket buffer sizes is 3*BDP, especially for a high-latency, high-bandwidth network."; "Set SDU Size to 65535 for Synchronous Transport Only"; "Maximum Availability will wait a maximum of NET_TIMEOUT seconds for an acknowledgment..."; FastStartFailoverThreshold default (30 s) and recommended minimum ("6 to 15 seconds..."; "Oracle RAC primary: Oracle RAC miscount + reconfiguration time + 30 seconds"); "the protection level must be dropped to Maximum Performance prior to a switchover"; "Oracle recommends that the primary and standby database systems are symmetric... redo apply performance also benefits greatly from symmetric primary and standby databases" (§1, §2, §4).
 2. *Set Up FMW Stretched Clusters.* Oracle Solutions (G49655-02, March 2026), accessed 2026-09-01.
    <https://docs.oracle.com/en/solutions/fmw-stretched-clusters/set-fmw-stretched-clusters1.html> — Supports: "the latency between these regions [Ashburn and Phoenix] exceeds 50 ms RTT" (§1).
 3. *Parameters for the sqlnet.ora File.* Oracle Net Services Reference 19c, accessed 2026-09-01.
@@ -124,11 +178,21 @@ unverified. Numbers restart per document. The consolidated index is `docs/refere
 4. *Database Licensing Information User Manual 19c, Table 1-14.* Oracle, accessed 2026-09-01.
    <https://docs.oracle.com/en/database/oracle/oracle-database/19/dblic/Licensing-Information.html> — Supports: "Data Guard Redo Transport Compression" is listed under Oracle Advanced Compression (§4).
 5. *Redo Transport Services.* Oracle Data Guard Concepts and Administration 19c, accessed 2026-09-01.
-   <https://docs.oracle.com/en/database/oracle/oracle-database/19/sbydb/oracle-data-guard-redo-transport-services.html> — Supports: "Each standby redo log file must be at least as large as the largest redo log file..."; "The standby redo log must have at least one more redo log group than the redo log at the redo source database, for each redo thread" (§5).
+   <https://docs.oracle.com/en/database/oracle/oracle-database/19/sbydb/oracle-data-guard-redo-transport-services.html> — Supports: "Each standby redo log file must be at least as large as the largest redo log file..."; "The standby redo log must have at least one more redo log group than the redo log at the redo source database, for each redo thread"; "If an acknowledgement is not received within NET_TIMEOUT seconds, the redo transport connection is terminated and an error is logged."; "Oracle recommends that the NET_TIMEOUT attribute be specified whenever the synchronous redo transport mode is used..." (§4, §5).
 6. *V$DATAGUARD_STATS.* Oracle Database Reference 19c, §7.168, accessed 2026-09-01.
    <https://docs.oracle.com/en/database/oracle/oracle-database/19/refrn/V-DATAGUARD_STATS.html> — Supports: `apply lag` and `transport lag` row definitions (§7).
 7. *Oracle Cloud Database Metrics.* Database Management documentation, Oracle Cloud Infrastructure, no version shown, accessed 2026-09-01.
    <https://docs.oracle.com/en-us/iaas/database-management/doc/oracle-cloud-database-metrics.html> — Supports: `ApplyLag`/`TransportLag` Monitoring metrics require Database Management Diagnostics & Management (§7).
+8. *Oracle Data Guard Protection Modes.* Oracle Data Guard Concepts and Administration 19c, accessed 2026-09-01.
+   <https://docs.oracle.com/en/database/oracle/oracle-database/19/sbydb/oracle-data-guard-protection-modes.html> — Supports: "Redo data is also written to one or more standby databases, but this is done asynchronously with respect to transaction commitment, so primary database performance is unaffected by the time required to transmit redo data and receive acknowledgment from a standby database." (§4).
+
+### Unverified statements
+
+- The specific `NetTimeout` value to set on `EBSPROD_IAD2` is not published by Oracle as a
+  same-region default; it must be measured against the actual network path (§4).
+- Whether the OCPU floor recommended in `docs/05-cost-and-teardown.md` §2 sustains redo
+  apply against a captured period-close redo rate has not been measured in this revision
+  (§4).
 
 [1]: https://docs.oracle.com/en/database/oracle/oracle-database/19/haovw/high-availability-overview-and-best-practices.pdf "High Availability Overview and Best Practices — Oracle Database 19c"
 [2]: https://docs.oracle.com/en/solutions/fmw-stretched-clusters/set-fmw-stretched-clusters1.html "Set Up FMW Stretched Clusters — Oracle"
@@ -137,3 +201,4 @@ unverified. Numbers restart per document. The consolidated index is `docs/refere
 [5]: https://docs.oracle.com/en/database/oracle/oracle-database/19/sbydb/oracle-data-guard-redo-transport-services.html "Redo Transport Services — Oracle Data Guard Concepts and Administration 19c"
 [6]: https://docs.oracle.com/en/database/oracle/oracle-database/19/refrn/V-DATAGUARD_STATS.html "V$DATAGUARD_STATS — Oracle Database Reference 19c"
 [7]: https://docs.oracle.com/en-us/iaas/database-management/doc/oracle-cloud-database-metrics.html "Oracle Cloud Database Metrics — Database Management"
+[8]: https://docs.oracle.com/en/database/oracle/oracle-database/19/sbydb/oracle-data-guard-protection-modes.html "Oracle Data Guard Protection Modes — Oracle Data Guard Concepts and Administration 19c"

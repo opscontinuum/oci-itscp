@@ -24,8 +24,8 @@ across availability domains and regions:
 
 | | Location | Role |
 |---|---|---|
-| **Production** | `us-ashburn-1` **AD-1** | Primary EBS database + Windows application, concurrent-processing, and visualization tiers |
-| **Local HA** | `us-ashburn-1` **AD-2** | Synchronous Oracle Data Guard standby — RPO 0 [1], automatic Fast-Start Failover [2] |
+| **Production** | `us-ashburn-1` **AD-1 and AD-2** | Primary EBS database in AD-1; Windows application, concurrent-processing, and visualization tiers split across both ADs behind one load balancer |
+| **Local HA** | `us-ashburn-1` **AD-2** | Synchronous Oracle Data Guard standby — RPO 0 while synchronized [1], automatic Fast-Start Failover [2]; the AD-2 application nodes keep the service reachable |
 | **Regional DR** | `us-phoenix-1` | Active Data Guard ASYNC standby [1] [3] + pilot-light Windows tiers |
 
 Two availability domains in Ashburn, one region away in Phoenix. That split is deliberate
@@ -52,7 +52,8 @@ Read it straight through in this order. It is written to be read, not just refer
 2. [`docs/02-mtd-tiers.md`](docs/02-mtd-tiers.md) — how downtime tiers are derived and costed
 3. [`docs/03-replication-matrix.md`](docs/03-replication-matrix.md) — every mechanism, and which ones are one-way doors
 4. [`runbooks/`](runbooks/) — what actually happens during a switchover, failover, failback, and drill
-5. [`docs/07-itil4-alignment.md`](docs/07-itil4-alignment.md) — how the vocabulary maps to ITIL 4, ISO 22301, NIST and DoD instruments
+5. [`docs/06-test-environments.md`](docs/06-test-environments.md) — what each test tier proves, and what none of them can
+6. [`docs/07-itil4-alignment.md`](docs/07-itil4-alignment.md) — how the vocabulary maps to ITIL 4, ISO 22301, NIST and DoD instruments
 
 ### If you are building a real plan from this
 
@@ -121,19 +122,20 @@ Cross-region SYNC is not viable because a synchronous commit waits for the stand
 acknowledgement [1] and Oracle states that Ashburn–Phoenix latency exceeds 50 ms RTT [4]
 (the ~60–70 ms used in this plan is a representative figure; measure your own). So the two
 jobs are split rather than compromised. Windows application, concurrent-processing, and
-visualization tiers are pre-provisioned in Phoenix with **identical hostnames** resolved by
-split-horizon private DNS — the pattern Oracle documents as "logical host names" for EBS
-business continuity [5] [6] — the single largest RTO lever in the plan, worth roughly
+visualization tiers are pre-provisioned in Phoenix under their own physical names, with EBS
+configured on **logical host names** that are the same in both regions and resolved
+region-locally — the pattern Oracle documents for EBS business continuity [5] [6] — the
+single largest RTO lever in the plan, worth roughly
 3–5 hours *(unverified: engineering judgement; no documentation found in this revision)*.
 Storage replicates natively per tier: **Volume Group Replication** for block [7], **FSS File
 System Replication** for shared filesystems [8], **Object Storage Replication Policy** for
-batch interchange [9], and **Autonomous Recovery Service in both regions** as the
-independent, ransomware-resistant failure domain [10] [11] [15]. The Ashburn service protects
-the primary, the Phoenix service protects the Phoenix standby (automatic backups on a
-standby-role database are supported [12]), backups replicate across availability domains
-within each region and can be restored to any region [10] [11], and retention lock makes
-them immutable [13]. After any role change, automatic backups are disabled on the new
-standby and must be re-enabled on the new primary [14]. **OCI Full Stack Disaster
+batch interchange [9], and **Autonomous Recovery Service** protecting the primary as the
+immutable, ransomware-resistant copy [10] [11] [15] [13]. OCI automatic backups cannot be
+enabled on the standby while the primary uses Recovery Service [14] (the general standby-backup
+capability [12] is conditioned on an Object Storage primary destination), so the Phoenix copy while
+Ashburn is primary is a customer-scheduled RMAN backup of the standby to Object Storage
+*(unverified: engineering judgement)*; after any role change Recovery Service is enabled on the
+new primary [14]. **OCI Full Stack Disaster
 Recovery** orchestrates switchover, failover, and non-disruptive drills [16].
 
 ## MTD tiers
@@ -183,7 +185,8 @@ window. The tooling refuses to do it. Rationale in
 
 ```
 docs/         01 architecture · 02 MTD tiers · 03 replication matrix · 04 monitoring
-              05 cost · 07 ITIL 4 / NIST / DoD alignment · references index · citation audit
+              05 cost · 06 test environments · 07 ITIL 4 / NIST / DoD alignment
+              references index · citation audit
   diagrams/   SVG source for the timeline and tier ladder
 runbooks/     RB-01 switchover · RB-02 failover · RB-03 failback
               RB-04 drill · RB-05 replication lifecycle
@@ -304,7 +307,7 @@ unverified. Numbers restart per document. The consolidated index is `docs/refere
 
 The following statements are engineering judgement with no supporting documentation found in this revision:
 
-- Identical hostnames are worth roughly 3–5 hours of RTO ("Design in one paragraph").
+- Logical host names are worth roughly 3–5 hours of RTO ("Design in one paragraph").
 - WRT is often larger than RTO for an ERP and no infrastructure spend shrinks it ("MTD tiers").
 - Replica storage is roughly 11% and compute roughly 46% of the DR bill; the warm posture is ~45–60% of production cost ("Postures").
 

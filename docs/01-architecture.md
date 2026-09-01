@@ -32,11 +32,11 @@ flowchart TB
     subgraph IAD["🟢 us-ashburn-1 — PRIMARY · VCN 10.10.0.0/16"]
         direction TB
         LBI["Flexible Load Balancer"]:::net
-        subgraph IADAPP["Windows tiers — running"]
+        subgraph IADAPP["Windows tiers — running, split across AD-1 and AD-2"]
             direction LR
-            WEBI["WIN-EBSWEB01/02<br/><i>Web / Forms</i>"]:::win
-            CMI["WIN-EBSCM01<br/><i>Concurrent Mgr · Workflow · Admin</i>"]:::win
-            BII["WIN-BI01<br/><i>Visualization / BI</i>"]:::win
+            WEBI["IAD-EBSWEB01 (AD-1) · IAD-EBSWEB02 (AD-2)<br/><i>Web / Forms · logical names ebsweb01/02</i>"]:::win
+            CMI["IAD-EBSCM01 (AD-1) · IAD-EBSCM02 (AD-2, stopped)<br/><i>Concurrent Mgr · Workflow · Admin</i>"]:::win
+            BII["IAD-BI01 (AD-2)<br/><i>Visualization / BI</i>"]:::win
         end
         DB1[("ExaDB-D · EBSPROD_IAD<br/><b>PRIMARY</b>")]:::dbp
         DB2[("ExaDB-D · EBSPROD_IAD2<br/>SYNC standby · AD-2")]:::dbs
@@ -52,11 +52,11 @@ flowchart TB
     subgraph PHX["🟡 us-phoenix-1 — STANDBY · VCN 10.20.0.0/16"]
         direction TB
         LBP["Flexible Load Balancer"]:::net
-        subgraph PHXAPP["Windows tiers — same FQDNs, stopped"]
+        subgraph PHXAPP["Windows tiers — own physical names, same EBS logical names, stopped"]
             direction LR
-            WEBP["WIN-EBSWEB01/02"]:::winoff
-            CMP["WIN-EBSCM01"]:::winoff
-            BIP["WIN-BI01<br/><i>reads ADG read-only</i>"]:::win
+            WEBP["PHX-EBSWEB01/02<br/><i>ebsweb01/02</i>"]:::winoff
+            CMP["PHX-EBSCM01/02<br/><i>ebscm01/02</i>"]:::winoff
+            BIP["PHX-BI01 · always on<br/><i>reads ADG read-only</i>"]:::win
         end
         DB3[("ExaDB-D · EBSPROD_PHX<br/>Active Data Guard<br/>min OCPU floor")]:::dbs
         LBP -.-> WEBP -.-> DB3
@@ -81,7 +81,7 @@ flowchart TB
     classDef ctrl fill:#f3e5f5,stroke:#8e24aa,stroke-width:2px,color:#4a148c
 ```
 
-**Reading the diagram:** solid heavy edges are the live production path; dashed edges activate only on failover. The BI tier is the exception — it reads the Phoenix standby *during normal operations*, which is what keeps the standby continuously proven (§4.5).
+**Reading the diagram:** solid heavy edges are the live production path; dashed edges activate only on failover. The Windows tiers in Ashburn are split across two availability domains so that the local Data Guard leg protects a service someone can reach, not only a database (§3). Physical computer names are unique per region and AD; EBS itself is configured with logical host names that are the same in both regions (§5.1). The BI tier is the exception to "stopped" — PHX-BI01 is always on and reads the Phoenix standby *during normal operations*, which is what keeps the standby continuously proven (§4.5).
 
 ---
 
@@ -94,14 +94,22 @@ So the design splits the two jobs, using Oracle Data Guard's Maximum Availabilit
 | Member | Region | Mode | Purpose | RPO |
 |---|---|---|---|---|
 | `EBSPROD_IAD` | Ashburn AD-1 | Primary | Production | — |
-| `EBSPROD_IAD2` | Ashburn AD-2 | **SYNC** (Max Availability) + FSFO | Local HA — AD or rack failure. Automatic. | **0** |
-| `EBSPROD_PHX` | Phoenix | **ASYNC** (Max Performance), Active Data Guard | Regional DR. Orchestrated, never automatic. | seconds |
+| `EBSPROD_IAD2` | Ashburn AD-2 | **SYNC** (Max Availability) + FSFO | Local HA — AD or rack failure. Automatic. | **0 while synchronized** [36][10] |
+| `EBSPROD_PHX` | Phoenix | **ASYNC** (Max Performance), Active Data Guard | Regional DR. Orchestrated, never automatic. | transport lag; target < 30 s, measured [6] |
 
-An **Oracle Data Guard Far Sync instance** in Ashburn AD-3 is a valid alternative to `EBSPROD_IAD2` if you want zero-data-loss *to Phoenix* without a full second standby — a far sync instance "receives redo into standby redo logs (SRLs), and archives those SRLs to local archived redo logs" but "does not have user data files, cannot be opened for access, cannot run redo apply, and can never function in the primary role" [8], and requires an Oracle Active Data Guard licence [8][5]. It costs less (no Exadata storage) but gives no local failover target. Choose `EBSPROD_IAD2` if local HA matters; choose Far Sync if only cross-region RPO=0 matters.
+Both standbys are created through the OCI Data Guard Group (`oci db database create-standby-database`) so that the control plane and Full Stack DR see all three members; a standby built outside the control plane is invisible to Full Stack DR prechecks [43].
 
-**Fast-Start Failover (FSFO) requires an observer** running on a host separate from the primary and standby [9]; Oracle's best practice is to place it "at a third site or third data center so that the primary, observer, and standby have isolated power, server, storage, and network infrastructure" [10]. This plan's FSFO observer sits in Ashburn AD-3 — a third availability domain, not a third region; Oracle's stronger recommendation is a genuinely separate site.
+**The local leg protects a service, not only a database.** The Windows tiers are split across Ashburn AD-1 and AD-2 (§2), with the load balancer spanning both, so that after a Fast-Start Failover to `EBSPROD_IAD2` the AD-2 web node and the stopped concurrent-manager twin `IAD-EBSCM02` can carry the service. Without that split an AD-1 loss would promote a database that no application node can reach, which is the same objection this plan makes to cross-region automatic failover below.
 
-**Automatic failover is deliberately scoped to Ashburn only.** Cross-region FSFO invites split-brain and, more practically, promotes a database whose Windows app tier is not yet running — which buys nothing. Cross-region promotion is always an orchestrated Full Stack DR plan execution. Consistent with that, this plan leaves **Full Stack DR's own "Automatic DR" toggle disabled** for the Phoenix Data Guard member: that feature would otherwise trigger an automated Full Stack DR plan execution whenever the Data Guard configuration changes role [11], which is exactly the automatic cross-region promotion this design rejects.
+**RPO 0 is conditional, and the runbooks say so.** Under Maximum Availability the primary "will wait a maximum of NET_TIMEOUT seconds for an acknowledgment from any of the standby databases, after which it will signal commit success to the application and move to the next transaction" [10]; Oracle recommends that NET_TIMEOUT "be specified whenever the synchronous redo transport mode is used, so that the maximum duration of a redo source database stall caused by a redo transport fault can be precisely controlled" [36]. This plan sets the Broker `NetTimeout` on `EBSPROD_IAD2` explicitly (value measured for the same-region path; `scripts/dataguard/tnsnames-tuning.md` §4). Once the standby is unsynchronized, fast-start failover cannot occur: "If the protection mode is maximum availability or maximum protection and the target standby database was not synchronized with the primary database at the time the primary database failed" [9]. The monitoring therefore alarms on the unsynchronized state (`docs/04-monitoring.md` §2), and every RPO 0 claim in this plan means "while `EBSPROD_IAD2` is synchronized and Ashburn is primary".
+
+**Fast-start failover constrains the runbooks.** While fast-start failover is enabled, "a switchover can be performed only to the pre-specified target standby database" and a manual failover "can only be performed to the current target standby database" [9]. A planned switchover to Phoenix (RB-01) therefore first drops the protection mode to Maximum Performance, sets `EBSPROD_IAD2` to ASYNC and disables fast-start failover; an unplanned failover to Phoenix (RB-02) issues `DISABLE FAST_START FAILOVER FORCE` from Phoenix, the form Oracle documents "when the network between the primary and target standby databases is disconnected or when the database upon which the command is received does not have a connection with the primary database" [46]. Oracle's own guidance for a configuration whose protection mode cannot be honoured after the transition is that "the protection level must be dropped to Maximum Performance prior to a switchover (planned event) as the level must be enforceable on the target in order to perform the transition" [10]. **While Phoenix is primary there is no synchronous standby, so the database RPO is the ASYNC transport lag to Ashburn until failback restores Maximum Availability (RB-03).**
+
+An **Oracle Data Guard Far Sync instance** in Ashburn AD-3 is a valid alternative to `EBSPROD_IAD2` if you want zero-data-loss *to Phoenix* without a full second standby — a far sync instance "receives redo into standby redo logs (SRLs), and archives those SRLs to local archived redo logs" but "does not have user data files, cannot be opened for access, cannot run redo apply, and can never function in the primary role" [8], and requires an Oracle Active Data Guard licence [8][5]. It costs less (no Exadata storage) but gives no local failover target, and a far sync instance cannot be a fast-start failover target [18]. Choose `EBSPROD_IAD2` if local HA matters; choose Far Sync if only cross-region RPO 0 matters.
+
+**Fast-Start Failover (FSFO) requires an observer** running on a host separate from the primary and standby [9]; Oracle's best practice is to place it "at a third site or third data center so that the primary, observer, and standby have isolated power, server, storage, and network infrastructure" [10], while also stating that "in an ideal state fast-start failover is deployed with the primary, standby, and observer, each within their own availability domain (AD) or data center; however, configurations that only use two availability domains, or even a single availability domain, must be supported" [10]. This plan's observer sits in Ashburn AD-3.
+
+**Automatic failover is deliberately scoped to Ashburn only.** The reason is not split-brain — observer fencing and the Broker's fast-start failover protections exist precisely to prevent it, and Oracle documents cross-region fast-start failover with a longer threshold "over WAN" [10]. The reason is that a cross-region automatic promotion would produce a primary whose Windows application tier is stopped and whose storage replicas are not yet activated — a promoted database nobody can use, with the failback cost of `docs/03-replication-matrix.md` §2 already incurred. Cross-region promotion is always an orchestrated Full Stack DR plan execution. Consistent with that, this plan leaves **Full Stack DR's own "Automatic DR" toggle disabled** for the Phoenix Data Guard member: that feature would otherwise trigger an automated Full Stack DR plan execution whenever the Data Guard configuration changes role [11].
 
 ---
 
@@ -112,22 +120,24 @@ An **Oracle Data Guard Far Sync instance** in Ashburn AD-3 is a valid alternativ
 - **Transport:** **Oracle Data Guard** redo transport, with redo transport compression enabled on the PHX leg — this requires the **Oracle Advanced Compression** option licence, since "Data Guard Redo Transport Compression" is one of the features included under Oracle Advanced Compression [5]. The Broker's `RedoRoutes` property overrides the default redo-routing behaviour [18]; this plan does not rely on cascaded routing, since Oracle's page describing `RedoRoutes` does not use the word "cascade" for this configuration.
 - **Apply:** **Oracle Active Data Guard** real-time apply in PHX, which requires an Active Data Guard licence [12][5]. This buys two things beyond DR — automatic block repair, and a read-only reporting source for the visualization tier (§4.5).
 - **Broker:** **Oracle Data Guard Broker** (`dgmgrl`) manages the whole configuration. The **Fast-Start Failover (FSFO) Observer** runs in Ashburn AD-3 on a small always-on VM and targets `EBSPROD_IAD2` **only** (§3).
-- **Backups (independent failure domain):** **Oracle Database Autonomous Recovery Service, deployed in both regions** — the Ashburn service protects the primary, and the Phoenix service protects the Phoenix standby (backups on a standby-role database are supported [16]). Real-time redo transport to Recovery Service is an extra-cost option that gets RPO "near the last sub-second" [13]. Recovery Service does not offer a documented cross-region backup-copy feature; Oracle's stated pattern for cross-region protection is "use Oracle Data Guard to replicate databases from primary to standby region and backup each region with local recovery service" [15], with each region's backups replicating for high availability within that region and restorable "to any availability domain, zone, or region" [13]. So the Phoenix service holds an independent, immutable backup of the *standby*, not a copy of the Ashburn backups — the ransomware / logical-corruption answer that Data Guard alone does not give you, since Data Guard faithfully replicates a `DELETE`. Enable retention lock (immutability, minimum 14-day lock delay) [14]. **After any switchover or failover, automatic backups are disabled on the new standby and must be explicitly re-enabled on the new primary** [17].
+- **Backups (independent failure domain):** **Oracle Database Autonomous Recovery Service protects the primary**, in whichever region is primary, with real-time redo transport (an extra-cost option that gets RPO "near the last sub-second" [13]) and retention lock for immutability [14]. Recovery Service replicates backups across availability domains *within* a region and can restore "to any availability domain, zone, or region" [13]; Oracle's stated cross-region pattern is "use Oracle Data Guard to replicate databases from primary to standby region and backup each region with local recovery service" [15]. **OCI automatic backups cannot be enabled on the Phoenix standby while the primary backs up to Recovery Service**: the ExaDB-D documentation permits automatic backups on a standby-role database in general [16], but the OCI release note states that customers can "enable or disable backup on the standby database only if the backup destination of the primary database is Object Storage" [17]. The Phoenix copy while Ashburn is primary is therefore a **customer-scheduled RMAN backup of the Active Data Guard standby to an Object Storage bucket** with a retention rule on the bucket *(unverified: engineering judgement; the standby-backup and bucket-retention mechanics were not verified against Oracle documentation in this revision)*. After any role change, automatic backups are disabled on the new standby [17] and Recovery Service must be enabled on the new primary (RB-02 §8). The alternative that Oracle's note permits — primary and standby both backing up to Object Storage with cross-region copy — keeps a Phoenix copy at all times but gives up real-time redo and retention lock; it is a business choice, recorded in `docs/05-cost-and-teardown.md` §4.
 - **Oracle Flashback Database ON** on the primary and both standbys. Flashback is required for the Broker's `REINSTATE DATABASE` to succeed after a failover — "Flashback Database must have been enabled on the database prior to the failover" [9] — which is what makes failback fast (RB-03). It is *not* a prerequisite for snapshot-standby drills: those need only a Fast Recovery Area, since "it is not necessary for flashback database to be enabled" to convert a physical standby to a snapshot standby [12] (RB-04). Keep Flashback on regardless, since reinstate is the design's failback path.
 
 > **HCC check.** Run `scripts/dataguard/check-hcc.sql` before sizing the standby. If any EBS or custom segment uses HCC, the PHX standby must be Exadata — a Base Database Service standby cannot query those segments.
 
 ### 4.2 Windows EBS application tier — Block Volumes
 
-Two mechanisms, used for different things:
+The volume model is stated exactly, because the adversarial review found the previous wording had activation both on and off the recovery path:
 
-| What | Mechanism | Why |
-|---|---|---|
-| OS + EBS binaries (`$APPL_TOP`, fs1/fs2, WebLogic domain) | **OCI Block Volume — Volume Group Replication** (cross-region) | All replicas in the group "are activated from the same coordinated synchronization point" [19] — a group-level guarantee across boot + all data volumes. Individually-replicated volumes are **not** mutually consistent — always use a volume group. |
-| Rebuild-from-scratch path | **OCI Compute Custom Images** plus **Instance Configurations** | Faster and cleaner for a Tier-2 cold rebuild; also your drift-recovery path if a replica is corrupt. There is no single "copy image to another region" operation — it is export the image to Object Storage, copy the object to the destination region's bucket, then import it there [20]. |
-| Inbound/outbound interface landing directories | Volume group replication **and** Object Storage staging (§4.4) | Interface files are the most common source of Work Recovery Time — see `docs/02-mtd-tiers.md` |
+| Volume | Where it lives | Replicated? | Role at failover |
+|---|---|---|---|
+| **Boot volume** (Windows, Oracle Cloud Agent, MKS Toolkit, JRE, Forms client) | On every instance in every region and AD, built from the same Custom Image | **No** — a non-moving instance boots from its own boot volume; Full Stack DR attaches replicated volumes to the pre-provisioned standby instance rather than moving the instance [49] | Instance is started; nothing to activate |
+| **EBS data volumes** (`fs1`, `fs2`, `fs_ne`, `$APPLCSF` log/out, `$APPL_TOP` per node) | Ashburn source volumes in one **Volume Group**; replica in Phoenix | **Yes** — **OCI Block Volume Volume Group Replication** (cross-region); all replicas in the group "are activated from the same coordinated synchronization point" [19] | **Activated** into a volume group (a clone of the replica [19]) and attached to the Phoenix instance — Full Stack DR's built-in "Volume Groups - Failover" then "Compute Instances - Attach Block Volumes" groups [38]. **This is on the critical path**; budget minutes for it in RTO |
+| **Rebuild-from-scratch path** | **OCI Compute Custom Images** plus **Instance Configurations** | Image copied by export to Object Storage, copy of the object to the destination region, import there [20] | Tier-2 cold rebuild, and the drift-recovery path if a replica is corrupt |
 
-**Operational note.** A volume group replica in PHX is not directly attachable. Failover requires *activating* the replica into a real volume group first, which takes minutes and is a scripted step (`scripts/oci/activate-volume-group.sh`). Budget for it in RTO. Instance Configurations are fine for rebuilding compute, but **Full Stack DR does not support compute instances that are attached to an instance pool** [21] — if pool-managed scaling is in use for any Windows tier, that tier needs a Full Stack DR compute member design that avoids instance pools.
+Because EBS 12.2 on Windows does not support a shared application-tier file system (§4.4), each application node carries its own `fs1`/`fs2`/`fs_ne` on its own replicated data volumes; there is no separate "EBS clone" on the Phoenix nodes — the replicated copy *is* the Phoenix application tier, which is what makes the logical-host-name design (§5.1) work without AutoConfig. Individually replicated volumes are **not** mutually consistent — always use a volume group. Inbound/outbound interface landing directories are additionally staged in Object Storage (§4.4), because interface files are the most common source of Work Recovery Time (`docs/02-mtd-tiers.md` §6).
+
+**Operational note.** Instance Configurations are fine for rebuilding compute, but **Full Stack DR does not support compute instances that are attached to an instance pool** [21] — if pool-managed scaling is in use for any Windows tier, that tier needs a Full Stack DR compute member design that avoids instance pools.
 
 ### 4.3 EBS 12.2 dual filesystem
 
@@ -135,19 +145,27 @@ EBS 12.2 online patching keeps two filesystems (`fs1`, `fs2`) — a run edition 
 
 **Freeze rule: do not fail over mid-`adop` cycle.** If an online patching cycle is open when disaster strikes, the failover runbook has an `adop -abort` + `fs_clone` recovery branch, using the documented `adop -status`, `adop phase=abort`, and `adop phase=fs_clone` commands [22] (RB-02 §7). Track cycle state on the health dashboard.
 
-### 4.4 Shared file systems — FSS vs Windows-native
+### 4.4 Shared file systems — what they hold, and FSS vs Windows-native
 
-A genuine decision point, because **OCI File Storage supports the NFSv3 protocol** [23] and Windows NFS client support (the Windows Client for NFS, accessing exports anonymously via `AnonymousUid`/`AnonymousGid` mapping under AUTH_SYS) [27] is workable but has UID-mapping friction and no NFSv4 semantics.
+**EBS 12.2 on Windows has no shared application-tier file system**: "Shared application tier file system functionality is not currently available on Windows" [47]. `fs1`/`fs2`/`fs_ne` therefore live on each node's own replicated data volumes (§4.2). The shared file systems in this plan (matrix row R5) hold only:
+
+- **inbound and outbound interface landing directories** that every application node must see;
+- **custom file drops** (bank files, EDI, scanned documents) written by integrations;
+- the **concurrent output archive**, if one is kept on a share rather than per node.
+
+These are write-heavy, so the replication interval bounds their loss: OCI File Storage replication runs at a minimum of 15 minutes, 60 by default [24][25]. That is why the primary recovery path for interface files is the Object Storage landing pattern in `docs/02-mtd-tiers.md` §6, not the share. Oracle's own EBS-on-OCI MAA paper did not rely on File Storage replication for this: "If you are using FSS, you can use the FSS file system synchronization, but be aware that it will only refresh the standby site once per hour. For our tests, we built scripts based on rsync" [54].
+
+A genuine decision point remains, because **OCI File Storage supports the NFSv3 protocol** [23] and Windows NFS client support (the Windows Client for NFS, accessing exports anonymously via `AnonymousUid`/`AnonymousGid` mapping under AUTH_SYS) [27] is workable but has UID-mapping friction and no NFSv4 semantics. Whether that configuration is EBS-certified for Windows was not found in any source read for this revision *(unverified)*.
 
 | Option | Use when | Cross-region mechanism | RPO |
 |---|---|---|---|
-| **A. OCI File Storage (FSS) — File System Replication**, mounted by the Windows *Client for NFS* [27] | Shared EBS directories that are read-mostly; any Linux-side consumers | **FSS File System Replication** (cross-region, snapshot-delta based) [24] | Interval-driven — minimum 15 minutes, default 60 minutes if none is specified [24][25]. |
-| **B. Windows File Server + Windows Server Storage Replica** | Heavy SMB write workloads, ACL-sensitive shares | **Windows Server Storage Replica**, asynchronous, cross-region | seconds–minutes |
+| **A. OCI File Storage (FSS) — File System Replication**, mounted by the Windows *Client for NFS* [27] | Interface landing directories and file drops that Linux-side integrations also read | **FSS File System Replication** (cross-region, snapshot-delta based) [24] | Interval-driven — minimum 15 minutes, default 60 minutes if none is specified [24][25]. |
+| **B. Windows File Server + Windows Server Storage Replica** | SMB-only consumers, ACL-sensitive shares | **Windows Server Storage Replica**, asynchronous, cross-region *(unverified: no Microsoft source read in this revision)* | seconds–minutes *(unverified)* |
 | **C. Object Storage as the interchange** | Batch interface files, EDI drops, archive | **OCI Object Storage — Replication Policy** | minutes |
 
-**Recommendation: A for EBS shared directories, C for all batch interchange, B only where an application genuinely demands SMB semantics.** Option B is powerful but adds a Windows cluster you must patch, license, and DR-test independently — the highest-maintenance choice on this page.
+**Recommendation: C for all batch interchange (primary path), A for the shared directories above, B only where an application genuinely demands SMB semantics.** Option B is powerful but adds a Windows cluster you must patch, license, and DR-test independently — the highest-maintenance choice on this page.
 
-> **FSS replication targets are read-only** while the replication resource exists [24]. Making one writable at failover means exporting it, which requires deleting the replication resource (or, if the source region is unreachable, deleting the replication target instead) [24][26]. **Once a target has been exported, re-establishing replication requires a full base copy**; a target that was never exported and had no snapshots created or deleted on it "can avoid a full base copy" and be reused directly [25]. This is a one-way door per failover event, once the target has been exported. Script it (`scripts/oci/fss-failover.sh`) and account for the re-baseline window in the failback plan.
+> **FSS replication targets are read-only** while the replication resource exists [24]. Making one writable at failover means exporting it, which requires deleting the replication resource (or, if the source region is unreachable, deleting the replication target instead) [24][26]. **Once a target has been exported, re-establishing replication requires a full base copy**; a target that was never exported and had no snapshots created or deleted on it "can avoid a full base copy" and be reused directly [25]. This is a one-way door per failover event, once the target has been exported. Script it (`scripts/oci/fss-failover.sh`; `--lossless` runs one more replication cycle before deletion on a planned switchover) and account for the re-baseline window in the failback plan.
 
 ### 4.5 Visualization / BI tier
 
@@ -159,24 +177,28 @@ EBS caveat: Oracle's EBS 12.2 MAA white paper states that "the Oracle E-Business
 
 ## 5. Network and naming — the single biggest RTO lever
 
-### 5.1 Identical hostnames across regions
+### 5.1 Logical host names — Oracle's pattern, not identical computer names
 
-**Design decision: the PHX app tier uses the same FQDNs and hostnames as IAD, resolved to region-local IPs by split-horizon private DNS.**
+**Design decision: physical computer names are unique per region and per availability domain (`IAD-EBSWEB01`, `PHX-EBSWEB01`, …); EBS is configured with logical host names (`ebsweb01`, `ebscm01`, …) that are the same in both regions and are resolved region-locally.**
 
-This matters more than any other choice in this document. EBS bakes hostnames into context files, `FND_NODES`, WebLogic configs, and profile options. If hostnames change at failover, Oracle's documented business-continuity sequence for a role transition is to purge `FND_NODES` and run AutoConfig on every tier: "Clean out the FND_NODES table by running the following command in SQL*Plus as the APPS user: `SQL> execute fnd_conc_clone.setup_clean;`", then run AutoConfig on the database tier, then "run AutoConfig on the middle tier for both RUN and PATCH file systems" [29]. The identical-hostnames pattern this plan uses instead — resolving the same FQDNs to region-local IPs — is documented by Oracle as "logical host names" for EBS 12.2 business continuity, My Oracle Support Doc ID 2246690.1 [33][29].
+This matters more than any other choice in this document. EBS bakes hostnames into context files, `FND_NODES`, WebLogic configs, and profile options. If the names EBS knows change at failover, Oracle's documented business-continuity sequence for a role transition is to purge `FND_NODES` and run AutoConfig on every tier: "Clean out the FND_NODES table by running the following command in SQL*Plus as the APPS user: `SQL> execute fnd_conc_clone.setup_clean;`", then run AutoConfig on the database tier, then "run AutoConfig on the middle tier for both RUN and PATCH file systems" [29].
 
 ```sql
 EXEC FND_CONC_CLONE.SETUP_CLEAN;   -- purge FND_NODES
 -- then AutoConfig on the DB tier, then AutoConfig on every app tier node
 ```
 
-That path is **~3–5 hours** *(unverified: engineering judgement; no documentation found in this revision)*. Keeping hostnames stable reduces app-tier recovery to *starting the services* — **~20–40 minutes** *(unverified: engineering judgement; no documentation found in this revision)*. The design therefore uses:
+That path is **~3–5 hours** *(unverified: engineering judgement; no documentation found in this revision)*. Oracle's pattern for avoiding it is logical host names: "Each server is allocated a new, neutral name that is used to configure Oracle E-Business Suite so that the installation does not need to be re-configured when switching from one site to the other. These logical host names are different from the physical host names. They are not registered in the DNS – they are used only by Oracle E-Business Suite. Other tools continue to use the physical host names" [29] (My Oracle Support Doc ID 2246690.1 is the documented procedure [33]). With the names stable, app-tier recovery is *starting the services* — **~20–40 minutes** *(unverified: engineering judgement; no documentation found in this revision)*. The design therefore uses:
 
-- Different VCN CIDRs (10.10/16 vs 10.20/16) — **required**, because both must be routable simultaneously for Data Guard
-- **Identical hostnames** via OCI Private DNS zones with region-scoped views
-- TNS aliases that resolve region-locally, so context files never change
+- **Unique physical names** per region and AD, each machine a distinct Active Directory computer account. Microsoft's guidance is to "use a unique name for every computer in your organization" and to avoid "using the same computer name for computers in different DNS domains" [48]; identically named machines cannot both hold a computer account in one domain.
+- **Logical host names in the EBS context** (`s_hostname`, `s_webhost` and the related variables), resolved on each node to that region's physical hosts — a hosts file per Oracle's paper, or a region-scoped OCI Private DNS view, which is equivalent for EBS; "the same zone name can be used in many views, but zone names within a view must be unique" [51]. Active Directory DNS is untouched; domain-joined nodes resolve AD names through AD as before.
+- **TNS aliases** that resolve region-locally, so context files never change; the SCAN names differ per region and Data Guard needs no shared names.
+- Different VCN CIDRs (10.10/16 vs 10.20/16) — **required**, because both must be routable simultaneously for Data Guard.
+- The **drill instances** get the same logical names in a drill-only resolution view, so a Level 2 drill starts EBS without AutoConfig (RB-04).
 
 ### 5.2 External entry point
+
+**The EBS load balancer in each region is public-facing, behind OCI Web Application Firewall.** That is a design statement, not a detail: Traffic Management "is only available for public DNS, and isn't supported on private DNS" [34], and Health Checks monitors "allow you to continuously monitor the health of public-facing endpoints" [50]. An estate whose EBS entry point is private-only cannot use this mechanism; its alternative is a private-zone record swap performed by a Full Stack DR user-defined step, with no health-check-driven automation (`docs/03-replication-matrix.md` R8).
 
 **OCI Traffic Management Steering Policies** — **Failover** policy type — with **OCI Health Checks**: "If the primary answer is unhealthy, DNS traffic is automatically steered to the secondary answer" [34]. Keep TTL low (30–60 s) — but remember client and corporate resolver caching means real-world DNS cutover is often 5–15 minutes regardless of TTL *(unverified: engineering judgement; no documentation found in this revision)*. Budget that into RTO; do not assume TTL is the whole story.
 
@@ -199,10 +221,10 @@ Full Stack DR (FSDR) is the native orchestrator, and it is how the "spin up and 
 
 - **DR Protection Group (DRPG)** in each region, associated as a peer pair.
 - **Members:** Full Stack DR supports 11 native member types, including compute instances, volume groups, load balancers/network load balancers, Oracle databases (Base Database Service and Exadata Database Service on Dedicated Infrastructure), file systems, **Object Storage buckets**, Autonomous Database, OKE clusters, MySQL DB systems, and Integration instances [37]. **Object Storage is a native member type with built-in plan groups** — "Object Storage Bucket - Delete Replication (Primary)" and "Object Storage Bucket - Setup Reverse Replication (Standby)" [38] — it does not require a user-defined step. This plan also uses **user-defined steps** for EBS-specific logic.
-- **Plans:** Switchover, Failover, **Start Drill**, **Stop Drill** [44]. The drill plans are the tear-down-able DR environment.
-- **User-defined steps** run your EBS logic — stop/start services, `cmclean.sql`, AutoConfig where needed — via the **Oracle Cloud Agent Run Command plugin**, or by invoking an Oracle Function [39]. On Windows, a Run Command script executes in a batch shell by default; to run it under PowerShell, the script's first line must be `#ps1` [40]. Plain-text scripts uploaded directly are capped at 4 KB — larger scripts must be staged in Object Storage [40]. **The Run Command plugin must be enabled and healthy on every Windows instance, or plan execution fails at that step.** Verify it in prechecks, every time.
+- **Plans:** Switchover, Failover, **Start Drill**, **Stop Drill** [44]. The drill plans are the tear-down-able DR environment. The published Start Drill order contains snapshot-standby conversion groups for Autonomous Database members but no documented group for an Oracle Database (ExaDB-D) member [38]; this plan converts the ExaDB-D standby through the OCI control plane — `oci db database convert-standby-database-type`, which "performs transition from standby database into a snapshot standby and vice versa" [53] — so that the Data Guard Group, the FSDR prechecks and the Broker agree on the role. While a drill is in progress, "if you attempt to execute a Switchover, Failover or Start Drill plan (or an associated precheck), you will get an error message indicating that this is a disallowed operation and that you must first execute a Stop Drill plan" [44] (RB-02 §0).
+- **User-defined steps** run your EBS logic — stop/start services, `cmclean.sql`, AutoConfig where needed — via the **Oracle Cloud Agent Run Command plugin**, or by invoking an Oracle Function [39]. On Windows, a Run Command script executes in a batch shell by default; to run it under PowerShell, the script's first line must be `#ps1` [40]. Plain-text scripts uploaded directly are capped at 4 KB — larger scripts must be staged in Object Storage [40]. **The Run Command plugin must be enabled and healthy on every Windows instance, or plan execution fails at that step.** Verify it in prechecks, every time. The shipped PowerShell scripts start with `#ps1`, exceed 4 KB, and so are used through the **Run local script** step type (the file lives on the node) with **Stop on error** — "Stop on error – Indicates that DR plan execution should stop if step execution fails" [39] — running as the EBS service account with the EBS environment script and vault-supplied credentials.
 - **The Data Guard member supports only one standby** of a Data Guard configuration — "Data Guard allows you to configure multiple standby database. However, Full Stack DR only supports one of these standby databases" [43]. That matches this design's single-Phoenix-standby topology and rules out adding a second FSDR-orchestrated standby without redesigning around it. **Automatic DR stays off** on the Data Guard member, for the reasons given in §3 [11].
-- **Full Stack DR is a charged service**, billed monthly on the allocated OCPU/ECPU (or OIC message packs) of compute, database, OKE, and Integration members — whether running or stopped — with no additional charge for block, file, object storage, load balancer, or networking members [42]. Budget the always-on Windows and database members accordingly.
+- **Full Stack DR is a charged service**, billed monthly on the allocated OCPU/ECPU (or OIC message packs) of compute, database, OKE, and Integration members — whether running or stopped — with no additional charge for block, file, object storage, load balancer, or networking members [42]. Budget the always-on Windows and database members accordingly — and remember that the Exadata infrastructure itself keeps billing at zero OCPU: "With zero cores, you are billed only for the infrastructure until you scale up the system" [52].
 - Grant FSDR access via dynamic groups + policies; send plan execution logs to a dedicated Object Storage bucket reserved exclusively for that DR Protection Group's logs [41].
 
 See `docs/03-replication-matrix.md` for the full member-to-mechanism mapping, and `runbooks/` for executable procedures.
@@ -307,6 +329,43 @@ The following statements are engineering judgement with no supporting documentat
 - Whether HCC-compressed data becomes unreadable on non-Exadata storage (A5).
 - The SETUP_CLEAN + AutoConfig path takes ~3–5 hours, and preserving hostnames reduces app-tier recovery to ~20–40 minutes (§5.1).
 - Real-world DNS cutover is often 5–15 minutes regardless of TTL, due to client and resolver caching (§5.2).
+46. *Oracle Data Guard Command-Line Interface Reference.* Oracle Data Guard Broker 19c, accessed
+    2026-09-01. <https://docs.oracle.com/en/database/oracle/oracle-database/19/dgbkr/oracle-data-guard-broker-commands.html>
+    — Supports: `DISABLE FAST_START FAILOVER` with the `FORCE` option "when the network between the
+    primary and target standby databases is disconnected or when the database upon which the
+    command is received does not have a connection with the primary database" (§3).
+47. *Load Balancing.* Oracle E-Business Suite Concepts, Release 12.2, accessed 2026-09-01.
+    <https://docs.oracle.com/cd/E26401_01/doc.122/e22949/T120505T120518.htm> — Supports: "Shared
+    application tier file system functionality is not currently available on Windows" (§4.4, §4.2).
+48. *Naming conventions in Active Directory for computers, domains, sites, and OUs.* Microsoft Learn,
+    accessed 2026-09-01. <https://learn.microsoft.com/en-us/troubleshoot/windows-server/active-directory/naming-conventions-for-computer-domain-site-ou>
+    — Supports: "Use a unique name for every computer in your organization" and "Avoid using the
+    same computer name for computers in different DNS domains" (§5.1).
+49. *Add a Non-Moving Instance to a Disaster Recovery Protection Group.* OCI Full Stack DR
+    documentation, © 2026, accessed 2026-09-01. <https://docs.oracle.com/en-us/iaas/disaster-recovery/doc/add-non-moving-instance.html>
+    — Supports: non-moving instances stay in their region and receive attached volumes via a volume
+    attachment reference ("Volume attachment reference is the peer compute instance used to get the
+    attachment details") (§4.2).
+50. *Health Checks.* OCI documentation, © 2026, accessed 2026-09-01.
+    <https://docs.oracle.com/en-us/iaas/Content/HealthChecks/Concepts/healthchecks.htm> — Supports:
+    monitors "allow you to continuously monitor the health of public-facing endpoints" (§5.2).
+51. *Private DNS.* OCI documentation, © 2026, accessed 2026-09-01.
+    <https://docs.oracle.com/en-us/iaas/Content/DNS/Tasks/privatedns.htm> — Supports: "The same
+    zone name can be used in many views, but zone names within a view must be unique" (§5.1).
+52. *Oracle Exadata Database Service on Dedicated Infrastructure Description.* Oracle, © 2026,
+    accessed 2026-09-01. <https://docs.oracle.com/en-us/iaas/exadatacloud/doc/exa-service-desc.html>
+    — Supports: "With zero cores, you are billed only for the infrastructure until you scale up the
+    system" (cited from `docs/02-mtd-tiers.md` §4; listed here for completeness of the Exadata
+    floor argument).
+53. *convert-standby-database-type.* OCI CLI Command Reference 3.91.0, accessed 2026-09-01.
+    <https://docs.oracle.com/en-us/iaas/tools/oci-cli/latest/oci_cli_docs/cmdref/db/database/convert-standby-database-type.html>
+    — Supports: "Performs transition from standby database into a snapshot standby and vice versa"
+    (§6).
+54. *Maximum Availability Architecture: Oracle E-Business Suite on OCI.* Oracle, July 2025, Version
+    1.0 (PDF), accessed 2026-09-01. <https://www.oracle.com/a/tech/docs/maaforebsonoci.pdf> —
+    Supports: "If you are using FSS, you can use the FSS file system synchronization, but be aware
+    that it will only refresh the standby site once per hour. For our tests, we built scripts based
+    on rsync" (§4.4). HTTP 403 to automated fetch; retrieved with a browser user agent and read.
 
 [1]: #references "MOS Doc ID 1330706.1 — unverifiable by URL (login-gated)"
 [2]: https://docs.oracle.com/cd/E26401_01/doc.122/e22950/T422699i4773.htm "Oracle E-Business Suite Installation Guide: Using Rapid Install, Release 12.2 — Oracle"
@@ -353,3 +412,12 @@ The following statements are engineering judgement with no supporting documentat
 [43]: https://docs.oracle.com/en-us/iaas/disaster-recovery/doc/prepare-database-disaster-recovery.html "Preparing Oracle Databases for Full Stack Disaster Recovery — Oracle"
 [44]: https://docs.oracle.com/en-us/iaas/disaster-recovery/doc/dr-plans-type.html "Types of Disaster Recovery Plans — OCI Full Stack DR"
 [45]: https://docs.oracle.com/cd/E26401_01/doc.122/e22950.pdf "Oracle E-Business Suite Installation Guide: Using Rapid Install, Release 12.2 (PDF) — Oracle"
+[46]: https://docs.oracle.com/en/database/oracle/oracle-database/19/dgbkr/oracle-data-guard-broker-commands.html "Data Guard Broker command reference 19c"
+[47]: https://docs.oracle.com/cd/E26401_01/doc.122/e22949/T120505T120518.htm "EBS 12.2 Concepts — Load Balancing"
+[48]: https://learn.microsoft.com/en-us/troubleshoot/windows-server/active-directory/naming-conventions-for-computer-domain-site-ou "Microsoft — naming conventions for computers, domains, sites, and OUs"
+[49]: https://docs.oracle.com/en-us/iaas/disaster-recovery/doc/add-non-moving-instance.html "Full Stack DR — Add a Non-Moving Instance"
+[50]: https://docs.oracle.com/en-us/iaas/Content/HealthChecks/Concepts/healthchecks.htm "OCI Health Checks"
+[51]: https://docs.oracle.com/en-us/iaas/Content/DNS/Tasks/privatedns.htm "OCI Private DNS"
+[52]: https://docs.oracle.com/en-us/iaas/exadatacloud/doc/exa-service-desc.html "ExaDB-D service description"
+[53]: https://docs.oracle.com/en-us/iaas/tools/oci-cli/latest/oci_cli_docs/cmdref/db/database/convert-standby-database-type.html "OCI CLI — convert-standby-database-type"
+[54]: https://www.oracle.com/a/tech/docs/maaforebsonoci.pdf "MAA: Oracle E-Business Suite on OCI (July 2025)"

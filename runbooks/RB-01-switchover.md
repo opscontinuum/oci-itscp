@@ -1,6 +1,8 @@
 # RB-01 — Planned Switchover: Ashburn → Phoenix
 
-**Type:** Planned, orderly transition [1]; zero data loss *(unverified: engineering judgement; no documentation found in this revision)*. **Expected duration:** 45–90 min *(unverified: engineering judgement; no documentation found in this revision)*. **Approval:** Change Advisory Board.
+**Type:** Planned, orderly transition [1]; zero data loss for the database while the switchover completes — the storage tiers are bounded by replica age, not zero (§3). **Expected duration:** 45–90 min *(unverified: engineering judgement; no documentation found in this revision)*. **Approval:** Change Advisory Board.
+
+> **RPO 0 is conditional.** It holds only while Ashburn is primary and `EBSPROD_IAD2` is synchronized under Maximum Availability. Once this runbook completes, Phoenix is primary under Maximum Performance with Ashburn as an ASYNC standby, and the database RPO becomes the ASYNC transport lag — see §2 and §6.
 **Use when:** DR exercise with real production, planned Ashburn maintenance, or pre-emptive evacuation (e.g. forecast regional event).
 
 > This is the **graceful** path — the database is healthy and reachable. If the primary is gone, use `RB-02-failover.md` instead. A switchover plan shuts the stack down in Ashburn and brings it up in Phoenix in an orderly way [1]; a failover does not attempt to shut the primary down [1], and the old primary must afterwards be reinstated with the Broker, which needs Flashback Database enabled beforehand [2].
@@ -49,12 +51,22 @@ sequenceDiagram
 - [ ] All replication healthy: `scripts/oci/check-replication-health.sh`
 - [ ] Oracle Cloud Agent **Run Command plugin** enabled and running on every PHX Windows instance — FSDR user-defined steps run only through Run Command (or Oracle Functions) [5], and the plugin must be enabled and running on the instance [6]. In our experience this is the #1 cause of plan-step failure *(unverified: engineering judgement; no documentation found in this revision)*
 - [ ] Latest volume group replica timestamp within tolerance
+- [ ] **No DR drill in progress.** While a DR Protection Group is in a `DrillInProgress` state, Switchover and Failover plans (and their prechecks) are refused until a Stop Drill plan runs [1]
 - [ ] Rollback decision-maker identified and available for the whole window
 
 ## 2. Prechecks (T-1 h)
 
 ```bash
-# Data Guard configuration health
+# 1. Downgrade protection ahead of the role transition. A synchronous, Maximum
+#    Availability configuration cannot switch over to a target whose transport
+#    mode does not support that protection level (see the trap below) — and once
+#    Phoenix is primary there is no Ashburn-local synchronous standby to protect it
+#    with anyway, so the configuration runs Maximum Performance / ASYNC from here on.
+dgmgrl / "edit configuration set protection mode as MaxPerformance"
+dgmgrl / "edit database 'EBSPROD_IAD2' set property LogXptMode='ASYNC'"
+dgmgrl / "disable fast_start failover"
+
+# 2. Data Guard configuration health
 dgmgrl / "show configuration verbose"
 dgmgrl / "validate database EBSPROD_PHX"     # must report "Ready for Switchover: Yes"
 
@@ -62,13 +74,13 @@ dgmgrl / "validate database EBSPROD_PHX"     # must report "Ready for Switchover
 ./scripts/oci/check-replication-health.sh          # regions and OCIDs come from terraform/dr-resources.env
 ```
 
-The Broker is Oracle's recommended way to administer Data Guard for EBS [7]; the command-line scenarios for role transitions are documented in the Broker guide [8]. The expected `Ready for Switchover: Yes` output line *(unverified: engineering judgement; no documentation found in this revision)*.
+The Broker is Oracle's recommended way to administer Data Guard for EBS [7]; the command-line scenarios for role transitions are documented in the Broker guide [8]. **The downgrade step is not optional.** Skip it and `VALIDATE DATABASE` can report the switchover blocked outright — the Broker's own worked example shows exactly this failure mode against a target whose `LogXptMode` is ASYNC while the configuration is still Maximum Availability: `Error: Switchover to this standby is not possible since there are no other standbys that can support the protection mode ... Ready for Switchover: No` [8]. Oracle's own MAA guidance for the equivalent Far Sync topology states the same requirement directly: "the protection level must be dropped to Maximum Performance prior to a switchover (planned event) as the level must be enforceable on the target in order to perform the transition" [31]. **Fast-start failover stays disabled after this switchover** — Phoenix becomes primary with no Ashburn-local synchronous standby it could name as an FSFO target *(unverified: engineering judgement; no documentation found in this revision)* — and `EBSPROD_IAD` runs onward as an ASYNC standby until failback (§6) re-enables Maximum Availability. With the downgrade done, the expected pass line is `Ready for Switchover: Yes` [8].
 
 Run the FSDR **plan prechecks** from the console or CLI. Prechecks validate that the plan is compliant with the members and configuration of the protection groups — for example that the database and its peer are Data Guard peers with the correct roles, that a volume group replica exists in the standby region, and that the FSS target is unexported with a replication snapshot [9]. You can also tick **Enable prechecks** so they run before the switchover plan itself [10]. Every precheck must pass. Do not proceed on a warning you have not read and understood.
 
 ## 3. Execution
 
-Execute the FSDR **Switchover** plan. It performs the sequence above: an orderly shutdown of the application stack in the primary region followed by bring-up in the standby region [1]. Monitor plan-step progress; the plan halts on a failed step rather than continuing *(unverified: engineering judgement; no documentation found in this revision)*.
+Execute the FSDR **Switchover** plan. It performs the sequence above: an orderly shutdown of the application stack in the primary region followed by bring-up in the standby region [1]. Monitor plan-step progress; a step configured **Stop on error** halts the plan on failure, while one configured **Continue on error** lets execution proceed regardless [5] — every user-defined EBS step in this plan must be Stop on error, because a step that fails silently mid-switchover (a stopped Run Command plugin, a failed `cmclean.sql`) is worse than a plan that stops and waits for a human.
 
 **Manual fallback** if FSDR is unavailable — run in this order, do not reorder:
 
@@ -76,26 +88,34 @@ Execute the FSDR **Switchover** plan. It performs the sequence above: an orderly
 # 1. Quiesce the application tier (IAD) — Concurrent Managers FIRST
 powershell -File scripts/windows/Stop-EBSAppTier.ps1 -Node ALL -Drain
 
-# 2. Switch the database
+# 2. Switch the database (protection mode already downgraded and FSFO disabled per §2)
 dgmgrl sys/****@EBSPROD_IAD "switchover to EBSPROD_PHX"
 
-# 3. Bring up Phoenix storage, then compute, then EBS
-#    Both take their OCIDs and region from terraform/dr-resources.env; both refuse without --confirm.
-./scripts/oci/activate-volume-group.sh --confirm --ticket "<change-ref>"
-./scripts/oci/fss-failover.sh --confirm --ticket "<change-ref>"
+# 3. Wait for the volume group replica to catch up to (approximately) the current
+#    write rate before activating it — activation takes the replica's LAST synced
+#    point, so activating early strands changes written after that point.
+oci bv volume-group-replica get --volume-group-replica-id <replica-ocid> --region us-phoenix-1 \
+  | jq -r '.data["time-last-synced"]'   # repeat until this is within one replication cycle of "now"
+
+# 4. Bring up Phoenix storage, then compute, then EBS
+#    All three take their OCIDs and region from terraform/dr-resources.env; all refuse without --confirm.
+#    --lossless on fss-failover.sh runs one final replication cycle before unlocking the target —
+#    use it here because this is a planned switchover with a reachable source; RB-02 never uses it.
+./scripts/oci/activate-volume-group.sh --vg-replica <replica-ocid> --region us-phoenix-1 --confirm --ticket "<change-ref>"
+./scripts/oci/fss-failover.sh --replication <replication-ocid> --region us-phoenix-1 --lossless --confirm --ticket "<change-ref>"
 ./scripts/oci/scale-exadata-ocpu.sh --cluster EBSPROD_PHX --ocpu-per-node 16
 powershell -File scripts/windows/Start-EBSAppTier.ps1 -Node ALL -RunCmClean
 
-# 4. Steer traffic
+# 5. Steer traffic
 ./scripts/oci/steer-traffic.sh --target phoenix
 ```
 
 What each fallback step does, and why the order holds:
 
 - **Database switchover** can also be driven through the OCI control plane with `oci db database switch-over-data-guard` on a Data Guard Group [11]. Oracle's EBS control scripts on Windows are `adstpall.cmd` / `adstrtal.cmd` / `adcmctl.cmd` [12].
-- **Volume groups:** activating the replica creates a *new* volume group by cloning the replica; volumes are attachable only after activation [13]. All replicas in the group activate from the same coordinated synchronization point [14].
-- **FSS:** the target file system is read-only while the replication resource exists; to fail over, delete the replication (or the replication target if the source is gone) and export the target [15][16].
-- **Exadata OCPUs:** VM cluster OCPU scaling is online [17].
+- **Volume groups:** activating the replica creates a *new* volume group by cloning the replica, from whatever point it was last synced; volumes are attachable only after activation [13]. All replicas in the group activate from the same coordinated synchronization point [14], read from the replica's own state [33] — that is why step 3 waits before step 4 activates: this is the difference between "zero data loss for the database" and the storage tiers' real, replica-age-bounded loss window.
+- **FSS:** the target file system is read-only while the replication resource exists; to fail over, delete the replication (or the replication target if the source is gone) and export the target [15][16]. Deleting with `--delete-mode ONE_MORE_CYCLE` runs one final capture-and-apply cycle first — the OCI CLI documents this mode explicitly "for lossless failover" [32]; that is what `--lossless` selects.
+- **Exadata OCPUs:** VM cluster OCPU scaling completes in minutes, without a cluster restart [17].
 - **Traffic:** the Traffic Management **FAILOVER** policy serves answers in priority order and uses Health Checks to decide which answer is healthy [18]; `steer-traffic.sh` updates the policy with `oci dns steering-policy update` [19]. FSDR has no DNS member type, so this step is always ours [20].
 
 ## 4. Concurrent Manager handling
@@ -109,7 +129,7 @@ Always run `cmclean.sql` before starting Concurrent Managers in the new primary.
 
 **Applicability caveat.** `cmclean.sql` is a widely used practice, but its My Oracle Support note 134007.1 [21] is publicly described as valid for Applications releases 10.7 to 12.1.3 [22], and Oracle's EBS 12.2 business-continuity material does not contain a cmclean step [23]. Confirm applicability to your 12.2 release with Oracle Support before relying on it.
 
-**Do not** run `FND_CONC_CLONE.SETUP_CLEAN` in a switchover — hostnames are preserved by design (`docs/01-architecture.md` §5.1), so `FND_NODES` is already correct. Oracle's documented use of `setup_clean` is the post-role-transition clean-out of `FND_NODES` followed by AutoConfig on the database tier and then on every application tier node, for both run and patch file systems [23]; that is the cycle you would be forcing. Running it needlessly turns a one-hour switchover into a multi-hour one *(unverified: engineering judgement; no documentation found in this revision)*.
+**Do not** run `FND_CONC_CLONE.SETUP_CLEAN` in a switchover — EBS is configured with **logical host names** that are resolved region-locally (`docs/01-architecture.md` §5.1), so `FND_NODES` never changes across a role transition and is already correct. Oracle's documented use of `setup_clean` is the post-role-transition clean-out of `FND_NODES` followed by AutoConfig on the database tier and then on every application tier node, for both run and patch file systems [23]; that is the cycle you would be forcing. Running it needlessly turns a one-hour switchover into a multi-hour one *(unverified: engineering judgement; no documentation found in this revision)*.
 
 ## 5. Validation pack
 
@@ -130,12 +150,13 @@ Record results in `evidence/` with a timestamp. This is your audit artifact.
 ## 6. Post-switchover
 
 - [ ] Confirm `EBSPROD_IAD` is receiving and applying redo as a standby [4]
-- [ ] **Re-enable automatic backups on the new primary.** After a switchover, Autonomous Recovery Service backup and restore are disabled on the new standby [24]; a standby-role database can itself have automatic backups enabled [25], so each region keeps its own local Recovery Service protection [26].
+- [ ] **Fast-start failover stays disabled; `EBSPROD_IAD` runs ASYNC.** This is not a defect to fix — Phoenix has no local synchronous standby to fail over to, so FSFO has nothing to target. The database RPO is now the ASYNC transport lag, not zero, until RB-03 restores Maximum Availability. Monitor transport lag as the RPO signal (`docs/04-monitoring.md` §2).
+- [ ] **Re-point Autonomous Recovery Service to the new primary.** Automatic backup on a standby-role database is possible in principle [25], but is permitted only while the *primary's* backup destination is Object Storage — a primary cannot move its own backup destination to Recovery Service while the standby also has automatic backup enabled [24]. In practice this means only one region's database is protected by Recovery Service at a time. Enable the Recovery Service subscription (real-time redo, retention lock) on `EBSPROD_PHX` now that it is primary — the documented cross-region pattern is Data Guard between regions with each region's Recovery Service protecting whichever database is primary there [26]. `EBSPROD_IAD`, now standby, is **not** covered by Recovery Service while Phoenix is primary — its independent copy is the scheduled RMAN backup of the standby to Object Storage described in `docs/01-architecture.md` §4.1; confirm that schedule is running against `EBSPROD_IAD` before declaring the post-switchover state complete.
 - [ ] Re-establish **reverse** replication for volume groups, FSS, and buckets (PHX→IAD). **This re-baselines** — see `docs/03-replication-matrix.md` §2. Start it immediately; it runs for hours.
   - Volume groups: enabling replication starts with an initial sync that "can take hours" depending on volume size and data written [27]; disabling deletes the replica, and re-enabling starts from scratch (Oracle states this in the resize context) [27].
   - FSS: a target that has been exported cannot be reused without a full base copy [28].
   - Object Storage: a new policy does **not** replicate objects that already exist in the source bucket [29] — bulk-copy the bucket contents first, then create the reverse policy.
-- [ ] Scale IAD Exadata OCPUs down to the standby floor — scaling is online; the minimum is 2 OCPU per VM (8 ECPU per VM on X11M), and setting 0 shuts the VM cluster down [17]
+- [ ] Scale IAD Exadata OCPUs down to the standby floor — scaling completes in minutes; the minimum is 2 OCPU per VM (8 ECPU per VM on X11M), and setting 0 shuts the VM cluster down [17]
 - [ ] Stop IAD Windows instances (they are now the pilot light) — `oci compute instance action --action STOP` [30]
 - [ ] Update the FSDR DRPG roles so Phoenix is primary
 - [ ] Communicate new steady state; set a failback date (see RB-03)
@@ -166,7 +187,7 @@ unverified. Numbers restart per document. The consolidated index is `docs/refere
 14. *Replicating Volume Groups.* Oracle Cloud Infrastructure Documentation, © 2026, accessed 2026-09-01. <https://docs.oracle.com/en-us/iaas/Content/Block/Concepts/volumegroupreplication.htm> — Supports: all replicas are activated "from the same coordinated synchronization point" (§3).
 15. *File System Replication.* Oracle Cloud Infrastructure Documentation, © 2026, accessed 2026-09-01. <https://docs.oracle.com/en-us/iaas/Content/File/Tasks/FSreplication.htm> — Supports: the target file system is read-only while replication exists; to fail over, export the target (§3).
 16. *Deleting a Replication Target.* Oracle Cloud Infrastructure Documentation, © 2026, accessed 2026-09-01. <https://docs.oracle.com/en-us/iaas/Content/File/Tasks/delete-replication-target.htm> — Supports: delete the replication target to make the target file system exportable when the source is unavailable (§3).
-17. *Manage VM Clusters.* Oracle Exadata Database Service on Dedicated Infrastructure, no version shown, accessed 2026-09-01. <https://docs.oracle.com/en-us/iaas/exadatacloud/doc/manage-vm-clusters.html> — Supports: OCPU scaling is online; setting OCPUs to zero shuts down the VM cluster; minimum 2 OCPU per VM (8 ECPU on X11M) (§3, §6).
+17. *Manage VM Clusters.* Oracle Exadata Database Service on Dedicated Infrastructure, no version shown, accessed 2026-09-01. <https://docs.oracle.com/en-us/iaas/exadatacloud/doc/manage-vm-clusters.html> — Supports: OCPU scaling operations complete in minutes; setting OCPUs to zero shuts down the VM cluster; minimum 2 OCPU per VM (8 ECPU on X11M) (§3, §6).
 18. *Overview of Traffic Management.* Oracle Cloud Infrastructure Documentation, © 2026, accessed 2026-09-01. <https://docs.oracle.com/en-us/iaas/Content/TrafficManagement/Concepts/overview.htm> — Supports: FAILOVER policy priority order with Health Checks (§3).
 19. *oci dns steering-policy update.* OCI CLI Command Reference 3.91.0, accessed 2026-09-01. <https://docs.oracle.com/en-us/iaas/tools/oci-cli/latest/oci_cli_docs/cmdref/dns/steering-policy/update.html> — Supports: steering policy answers and rules are updated with this verb (§3).
 20. *Add Members to a Disaster Recovery Protection Group.* Oracle Cloud Infrastructure Documentation, © 2026, accessed 2026-09-01. <https://docs.oracle.com/en-us/iaas/disaster-recovery/doc/add-members-protection-group.html> — Supports: the member-type list contains no DNS or Traffic Management member (§3).
@@ -180,14 +201,15 @@ unverified. Numbers restart per document. The consolidated index is `docs/refere
 28. *Creating a Replication.* Oracle Cloud Infrastructure Documentation (File Storage), © 2026, accessed 2026-09-01. <https://docs.oracle.com/en-us/iaas/Content/File/Tasks/fsreplication-creating-a-replication.htm> — Supports: a never-exported former target can be reused and "avoid a full base copy"; an exported target cannot (§6).
 29. *Object Storage Replication.* Oracle Cloud Infrastructure Documentation, © 2026, accessed 2026-09-01. <https://docs.oracle.com/en-us/iaas/Content/Object/Tasks/usingreplication.htm> — Supports: "Objects uploaded to a source bucket before policy creation aren't replicated" (§6).
 30. *oci compute instance action.* OCI CLI Command Reference 3.91.0, accessed 2026-09-01. <https://docs.oracle.com/en-us/iaas/tools/oci-cli/latest/oci_cli_docs/cmdref/compute/instance/action.html> — Supports: `--action STOP` / `START` (§6).
+31. *High Availability Overview and Best Practices.* Oracle Database 19c, F23691-56, July 14 2026, accessed 2026-09-01. <https://docs.oracle.com/en/database/oracle/oracle-database/19/haovw/high-availability-overview-and-best-practices.pdf> — Supports: "the protection level must be dropped to Maximum Performance prior to a switchover (planned event) as the level must be enforceable on the target in order to perform the transition" (§2).
+32. *oci fs replication delete.* OCI CLI Command Reference 3.91.0, accessed 2026-09-01. <https://docs.oracle.com/en-us/iaas/tools/oci-cli/latest/oci_cli_docs/cmdref/fs/replication/delete.html> — Supports: `--delete-mode` accepts `ONE_MORE_CYCLE`, documented "Use for lossless failover" (§3).
+33. *oci bv volume-group-replica get.* OCI CLI Command Reference 3.91.0, accessed 2026-09-01. <https://docs.oracle.com/en-us/iaas/tools/oci-cli/latest/oci_cli_docs/cmdref/bv/volume-group-replica/get.html> — Supports: reads the replica's current state and last-synced timestamp before activation (§3).
 
 ### Unverified statements
 
-- Header: switchover is zero data loss — engineering judgement; no fetched source states it.
 - Header: expected duration 45–90 min — engineering estimate.
 - §1: a stopped Run Command plugin is the #1 cause of plan-step failure — engineering judgement.
-- §2: `validate database` reports `Ready for Switchover: Yes` — expected output not confirmed in a fetched page.
-- §3: the FSDR plan halts on a failed step rather than continuing — not confirmed in a fetched page.
+- §2: fast-start failover cannot re-target itself onto Phoenix because no Ashburn-local synchronous standby exists to name — engineering judgement; the consequence follows from the cited Broker documentation but is not itself stated in a fetched page.
 - §4: stale `FND_CONCURRENT_QUEUES` / ICM rows block manager start after a role change — engineering judgement.
 - §4: an unnecessary `SETUP_CLEAN` + AutoConfig cycle turns a one-hour switchover into a multi-hour one — engineering estimate.
 
@@ -221,3 +243,6 @@ unverified. Numbers restart per document. The consolidated index is `docs/refere
 [28]: https://docs.oracle.com/en-us/iaas/Content/File/Tasks/fsreplication-creating-a-replication.htm "Creating a Replication — Oracle File Storage"
 [29]: https://docs.oracle.com/en-us/iaas/Content/Object/Tasks/usingreplication.htm "Object Storage Replication — Oracle"
 [30]: https://docs.oracle.com/en-us/iaas/tools/oci-cli/latest/oci_cli_docs/cmdref/compute/instance/action.html "oci compute instance action — OCI CLI 3.91.0"
+[31]: https://docs.oracle.com/en/database/oracle/oracle-database/19/haovw/high-availability-overview-and-best-practices.pdf "High Availability Overview and Best Practices — Oracle Database 19c"
+[32]: https://docs.oracle.com/en-us/iaas/tools/oci-cli/latest/oci_cli_docs/cmdref/fs/replication/delete.html "oci fs replication delete — OCI CLI 3.91.0"
+[33]: https://docs.oracle.com/en-us/iaas/tools/oci-cli/latest/oci_cli_docs/cmdref/bv/volume-group-replica/get.html "oci bv volume-group-replica get — OCI CLI 3.91.0"

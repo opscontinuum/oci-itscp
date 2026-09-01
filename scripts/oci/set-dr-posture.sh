@@ -128,6 +128,10 @@ scale_exadata() {
 instances_action() {
   local action="$1"
   for ocid in $DR_APP_INSTANCE_OCIDS; do
+    # Always-on instances (the BI tier that reads the standby every day) are never stopped.
+    if [[ "$action" == "STOP" && " ${DR_ALWAYS_ON_INSTANCE_OCIDS:-} " == *" $ocid "* ]]; then
+      echo "-> keep RUNNING (always-on) $ocid"; continue
+    fi
     echo "-> ${action} ${ocid}"
     run oci compute instance action \
           --instance-id "$ocid" \

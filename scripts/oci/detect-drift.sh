@@ -14,7 +14,7 @@
 #   B. Compute pairs    shape, OCPU/memory, image, Oracle Cloud Agent plugin config
 #   C. Custom images    age of the newest Phoenix copy vs the newest Ashburn image
 #   D. NSG rules        security rules diff per configured NSG pair
-#   E. EBS              adop cycle state, patch count, FND_NODES (needs sqlplus)
+#   E. EBS              adop cycle state, patch count, FND_NODES logical host names (needs sqlplus)
 #   F. In-guest         delegated to scripts/windows/Compare-NodeDrift.ps1
 #
 # Exit codes: 0 = no drift, 1 = drift found (report written), 3 = config/tooling.

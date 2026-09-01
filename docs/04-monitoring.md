@@ -11,10 +11,11 @@ These are the failure modes that do not announce themselves. Each has an alarm b
 | Silent failure | Consequence | Detection |
 |---|---|---|
 | **Oracle Data Guard** apply stopped, transport still running | Standby falls arbitrarily far behind; the console still looks "connected" | Apply lag alarm — `ApplyLag` metric [1] |
+| **Oracle Data Guard** configuration falls UNSYNCHRONIZED under Maximum Availability — an AD-2 network fault stalls each commit for `NetTimeout` seconds, then the primary proceeds unprotected [14][15] | RPO 0 stops being true, and fast-start failover cannot occur while the target standby is unsynchronized [16] — the local automatic-failover story silently stops working exactly in the double-fault case Tier 0 exists to cover | Configuration status alarm — Broker `show configuration` synchronized state |
 | **Volume Group Replication** silently stalled | Replica frozen at an old point-in-time; discovered only at failover | Replica timestamp age alarm — `VolumeReplicationSecondsSinceLastSync` [2] |
 | **FSS File System Replication** interval missed repeatedly | Files hours or days stale | Recovery-point-delta alarm — `ReplicationRecoveryPointAge` [3] |
 | **Oracle Cloud Agent Run Command plugin** stopped on a Windows node | Every Full Stack DR user-defined step fails mid-plan | Plugin health check [4] |
-| **Autonomous Recovery Service** automatic backups still disabled on the new primary after a role change | No backups are being taken on the region that is now primary, until someone re-enables them [5] | Protected-database status check [5] |
+| **Autonomous Recovery Service** protection not yet enabled on the new primary after a role change *(operational consequence; the release note documents only that backups are disabled on the new standby / new Disabled Standby)* [5] | No backups are being taken on the region that is now primary until someone completes the manual re-enable step (`docs/05-cost-and-teardown.md` §4) | Protected-database status check [10] |
 | Fast Recovery Area filling | Apply stalls; drills fail | FRA utilisation alarm *(unverified: engineering judgement; no documentation found in this revision)* |
 | Phoenix ExaDB-D scaled to 0 OCPU by a cost-cutting change | Redo apply stopped; Tier 1 silently became Tier 3 — scaling to 0 OCPU shuts the VM cluster down [6] | OCPU floor alarm — `OcpusAllocated` metric [7] |
 | Configuration drift between regions | Failover succeeds, application misbehaves | Weekly drift report |
@@ -27,12 +28,20 @@ Implemented with **OCI Monitoring** alarms → **OCI Notifications** topics. Def
 
 **Data Guard lag metrics require Database Management Diagnostics & Management to be enabled on the database.** They are emitted in the `oracle_oci_database` namespace, resource group `oracle_dataguard` — **not** the base `oci_database` namespace that ships without Diagnostics & Management [1].
 
+**`TransportLag` is the RPO signal; `ApplyLag` is the RTO signal.** Data loss at a
+cross-region failover is bounded by redo already received but not yet applied — the
+transport gap — since a complete failover applies all accumulated redo before the role
+changes; how far the apply process has caught up governs how long that failover takes, not
+how much data is at risk.
+
 | Alarm | Metric source | Warning | Critical | Routes to |
 |---|---|---|---|---|
-| DG apply lag (PHX) | `oracle_oci_database` / `oracle_dataguard` — `ApplyLag` [1] | > 5 min | > 15 min | DBA on-call |
-| DG transport lag (PHX) | `oracle_oci_database` / `oracle_dataguard` — `TransportLag` [1] | > 2 min | > 10 min | DBA on-call |
+| DG apply lag (PHX) — RTO signal | `oracle_oci_database` / `oracle_dataguard` — `ApplyLag` [1] | > 5 min | > 15 min | DBA on-call |
+| DG transport lag (PHX) — RPO signal | `oracle_oci_database` / `oracle_dataguard` — `TransportLag` [1] | > 15 s | > 30 s | DBA on-call, page |
 | DG apply lag (IAD2, SYNC leg) | `oracle_oci_database` / `oracle_dataguard` — `ApplyLag` [1] | any lag | > 60 s | DBA on-call, page |
 | DG configuration status | Broker `show configuration` (`dgmgrl`) | WARNING | ERROR | DBA on-call, page |
+| DG configuration UNSYNCHRONIZED (fast-start failover not possible) [16] | Broker `show configuration` synchronized state | any | UNSYNCHRONIZED | DBA on-call, page |
+| DG apply lag rising while transport lag stays flat (apply bottleneck signature) [14] | derived from `ApplyLag` and `TransportLag` [1] | sustained 10 min *(unverified: engineering judgement — threshold, not the signature itself)* | sustained 30 min *(unverified: engineering judgement)* | DBA on-call |
 | Volume group replica age | `oci_blockstore` — `VolumeReplicationSecondsSinceLastSync` [2] | > 30 min | > 2 hr | Infra on-call |
 | FSS recovery point delta | `oci_filestorage` — `ReplicationRecoveryPointAge` [3] | > 1.5× interval | > 3× interval | Infra on-call |
 | Object Storage replication backlog | **No Monitoring metric exists** [8] — poll `oci os replication get-replication-policy` status [9] | any non-ACTIVE | sustained non-ACTIVE | Infra on-call |
@@ -40,7 +49,7 @@ Implemented with **OCI Monitoring** alarms → **OCI Notifications** topics. Def
 | ARS protected DB status | `oci recovery protected-database get` status [10] | non-healthy | no backup in 26 hr | DBA on-call, page |
 | FRA utilisation | DB metrics | > 75% | > 85% | DBA on-call |
 | PHX ExaDB-D OCPU below floor | `oci_database_cluster` — `OcpusAllocated` [7] | below configured floor | — | Infra on-call + FinOps |
-| FSDR plan precheck failure | FSDR plan precheck events [11] | any | any | DR coordinator |
+| FSDR plan precheck failure | FSDR plan prechecks (pass/fail) [11] | any | any | DR coordinator |
 | Traffic Management health check | **OCI Health Checks** [12] | 1 failure | 3 consecutive | Infra on-call, page |
 
 **Alarm on the absence of signal, not only on bad values.** A metric that stops arriving must alarm — several failure modes above manifest as silence rather than a bad number.
@@ -92,7 +101,9 @@ The report contains, per protected resource:
 (`oracle_oci_database/ApplyLag`, `oracle_oci_database/TransportLag`,
 `oci_blockstore/VolumeReplicationSecondsSinceLastSync`, `oci_filestorage/ReplicationRecoveryPointAge`)
 [1][2][3]; Object Storage has no native replication metric and is checked by polling replication
-policy status instead [8][9].
+policy status instead [8][9]. **Report `TransportLag` against the RPO target and `ApplyLag`
+against the RTO target** (§2) — attesting RPO compliance from `ApplyLag` alone conflates the
+two and can report a database as compliant while its data-loss exposure is well past target.
 
 **Report against the tier target, and report breaches honestly.** A report showing three hours outside RPO with an explanation is credible and actionable. One showing perfect compliance every month is not believed by anyone who has run infrastructure, and it removes the evidence you need to justify investment.
 
@@ -134,7 +145,7 @@ unverified. Numbers restart per document. The consolidated index is `docs/refere
 4. *`oci instance-agent plugin get`.* OCI CLI Command Reference 3.91.0, Oracle, accessed 2026-09-01.
    <https://docs.oracle.com/en-us/iaas/tools/oci-cli/latest/oci_cli_docs/cmdref/instance-agent/plugin/get.html> — Supports: plugin status can be queried per instance (§1, §2).
 5. *Backup and Restore from a Standby Database in a Data Guard Environment.* OCI release note, August 24, 2023, accessed 2026-09-01.
-   <https://docs.oracle.com/en-us/iaas/releasenotes/changes/19e890da-7b15-4d55-a0b3-28058930a8f8/> — Supports: after switchover or failover, automatic backups are disabled on the new standby / new disabled standby database (§1).
+   <https://docs.oracle.com/en-us/iaas/releasenotes/changes/19e890da-7b15-4d55-a0b3-28058930a8f8/> — Supports: after switchover or failover, automatic backups are disabled on the new standby / new Disabled Standby database; the release note does not state that the new primary's backups are disabled or when they are re-enabled (§1).
 6. *Manage VM Clusters.* Exadata Database Service on Dedicated Infrastructure documentation, no version shown, accessed 2026-09-01.
    <https://docs.oracle.com/en-us/iaas/exadatacloud/doc/manage-vm-clusters.html> — Supports: "setting the number of OCPUs (ECPUs for X11M) to zero will shut down the VM Cluster and eliminate any billing for that VM Cluster" (§1).
 7. *Metrics for Oracle Exadata Database Service on Dedicated Infrastructure in the Monitoring Service.* Oracle Cloud Infrastructure Documentation, © 2026, accessed 2026-09-01.
@@ -146,11 +157,25 @@ unverified. Numbers restart per document. The consolidated index is `docs/refere
 10. *`oci recovery protected-database get`.* OCI CLI Command Reference 3.91.0, Oracle, accessed 2026-09-01.
     <https://docs.oracle.com/en-us/iaas/tools/oci-cli/latest/oci_cli_docs/cmdref/recovery/protected-database/get.html> — Supports: protected-database status is queryable via this CLI command (§2).
 11. *Prechecks Performed by Full Stack Disaster Recovery.* OCI Full Stack DR documentation, © 2026, accessed 2026-09-01.
-    <https://docs.oracle.com/en-us/iaas/disaster-recovery/doc/prechecks-disaster-recovery.html> — Supports: FSDR plan prechecks produce pass/fail events for DRPG, plan, and execution validation (§2).
+    <https://docs.oracle.com/en-us/iaas/disaster-recovery/doc/prechecks-disaster-recovery.html> — Supports: "Prechecks are validations performed by Full Stack Disaster Recovery for resources such as DR Protection Groups, DR Plans, and DR Plan Executions." (§2).
 12. *Overview of Traffic Management.* Oracle Cloud Infrastructure Documentation, © 2026, accessed 2026-09-01.
     <https://docs.oracle.com/en-us/iaas/Content/TrafficManagement/Concepts/overview.htm> — Supports: OCI Health Checks evaluate answer health for FAILOVER steering policies (§2).
 13. *Oracle E-Business Suite Maintenance Guide, Release 12.2 — Patching Procedures.* Oracle documentation, accessed 2026-09-01.
     <https://docs.oracle.com/cd/E26401_01/doc.122/e22954/T202991T531065.htm> — Supports: "you can use the adop -status command to verify that no patching cycle is currently active" (§3, §5).
+14. *High Availability Overview and Best Practices.* Oracle Database 19c (F23691-56, July 14 2026), accessed 2026-09-01.
+    <https://docs.oracle.com/en/database/oracle/oracle-database/19/haovw/high-availability-overview-and-best-practices.pdf> — Supports: "Maximum Availability will wait a maximum of NET_TIMEOUT seconds for an acknowledgment from any of the standby databases, after which it will signal commit success to the application and move to the next transaction."; "Oracle recommends that the primary and standby database systems are symmetric... redo apply performance also benefits greatly from symmetric primary and standby databases" (§1, §2).
+15. *Redo Transport Services.* Oracle Data Guard Concepts and Administration 19c, accessed 2026-09-01.
+    <https://docs.oracle.com/en/database/oracle/oracle-database/19/sbydb/oracle-data-guard-redo-transport-services.html> — Supports: "If an acknowledgement is not received within NET_TIMEOUT seconds, the redo transport connection is terminated and an error is logged." (§1).
+16. *Switchover and Failover Operations.* Oracle Data Guard Broker 19c, accessed 2026-09-01.
+    <https://docs.oracle.com/en/database/oracle/oracle-database/19/dgbkr/using-data-guard-broker-to-manage-switchovers-failovers.html> — Supports: fast-start failover cannot occur "if the protection mode is maximum availability or maximum protection and the target standby database was not synchronized with the primary database at the time the primary database failed" (§1, §2).
+
+### Unverified statements
+
+- The 10-minute / 30-minute thresholds for the "apply lag rising while transport lag flat"
+  alarm are an engineering estimate; the HA guide documents the bottleneck signature, not a
+  specific threshold (§2).
+- The FRA utilisation alarm thresholds (75% / 85%) are engineering judgement; no Oracle
+  documentation consulted for this revision specifies them (§1, §2).
 
 [1]: https://docs.oracle.com/en-us/iaas/database-management/doc/oracle-cloud-database-metrics.html "Oracle Cloud Database Metrics — Database Management"
 [2]: https://docs.oracle.com/en-us/iaas/Content/Block/References/volumemetrics-reference.htm "Block Volume Metrics Reference — Oracle"
@@ -165,3 +190,6 @@ unverified. Numbers restart per document. The consolidated index is `docs/refere
 [11]: https://docs.oracle.com/en-us/iaas/disaster-recovery/doc/prechecks-disaster-recovery.html "Prechecks Performed by Full Stack Disaster Recovery — Oracle"
 [12]: https://docs.oracle.com/en-us/iaas/Content/TrafficManagement/Concepts/overview.htm "Overview of Traffic Management — Oracle"
 [13]: https://docs.oracle.com/cd/E26401_01/doc.122/e22954/T202991T531065.htm "Oracle E-Business Suite Maintenance Guide, Release 12.2 — Patching Procedures"
+[14]: https://docs.oracle.com/en/database/oracle/oracle-database/19/haovw/high-availability-overview-and-best-practices.pdf "High Availability Overview and Best Practices — Oracle Database 19c"
+[15]: https://docs.oracle.com/en/database/oracle/oracle-database/19/sbydb/oracle-data-guard-redo-transport-services.html "Redo Transport Services — Oracle Data Guard Concepts and Administration 19c"
+[16]: https://docs.oracle.com/en/database/oracle/oracle-database/19/dgbkr/using-data-guard-broker-to-manage-switchovers-failovers.html "Switchover and Failover Operations — Oracle Data Guard Broker 19c"

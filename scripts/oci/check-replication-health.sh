@@ -38,6 +38,15 @@ if command -v dgmgrl >/dev/null 2>&1; then
 
   for DB in "${DG_STANDBY_LOCAL:-}" "${DG_STANDBY_REMOTE:-}"; do
     [[ -z "$DB" ]] && continue
+    # Transport lag is the data-loss (RPO) signal; apply lag is the recovery-time signal.
+    TLAG=$(dgmgrl -silent "$DG_CONNECT" "show database '$DB' 'TransportLag'" 2>/dev/null \
+          | grep -oE '[0-9]+ (second|minute|hour)' | head -1)
+    TSECS=$(echo "$TLAG" | awk '{n=$1; u=$2; if(u ~ /minute/) n*=60; if(u ~ /hour/) n*=3600; print n+0}')
+    if   [[ -z "$TLAG" ]];       then warn "$DB: transport lag not readable"
+    elif [[ "$TSECS" -gt 30 ]];  then crit "$DB: transport lag ${TLAG} (>30 s Tier-0 RPO)"
+    elif [[ "$TSECS" -gt 15 ]];  then warn "$DB: transport lag ${TLAG} (>15 s)"
+    else                              ok  "$DB: transport lag ${TLAG}"
+    fi
     LAG=$(dgmgrl -silent "$DG_CONNECT" "show database '$DB' 'ApplyLag'" 2>/dev/null \
           | grep -oE '[0-9]+ (second|minute|hour)' | head -1)
     SECS=$(echo "$LAG" | awk '{n=$1; u=$2; if(u ~ /minute/) n*=60; if(u ~ /hour/) n*=3600; print n+0}')
@@ -47,6 +56,15 @@ if command -v dgmgrl >/dev/null 2>&1; then
     else                              ok  "$DB: apply lag ${LAG}"
     fi
   done
+  # Fast-start failover can only occur while the target is synchronized (Broker 19c).
+  FSFO_OUT=$(dgmgrl -silent "$DG_CONNECT" "show fast_start failover" 2>&1)
+  if echo "$FSFO_OUT" | grep -qiE 'UNSYNCHRONIZED|not synchronized|ORA-16'; then
+    crit "Fast-start failover: configuration UNSYNCHRONIZED -- automatic local failover is not possible and RPO 0 does not hold"
+  elif echo "$FSFO_OUT" | grep -qi 'Fast-Start Failover:.*Enabled'; then
+    ok "Fast-start failover: enabled and synchronized"
+  else
+    warn "Fast-start failover: not enabled (expected while Phoenix is primary; unexpected in steady state)"
+  fi
 else
   warn "dgmgrl not on PATH -- Data Guard checks skipped (run from a DB node)"
 fi

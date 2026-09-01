@@ -31,6 +31,7 @@ CONFIG="${DR_CONFIG:-$(dirname "$0")/../../terraform/dr-resources.env}"
 EVIDENCE_DIR="${DR_EVIDENCE_DIR:-$(dirname "$0")/../../evidence}"
 LOG="${EVIDENCE_DIR}/decommission-log.md"
 CONFIRM=0
+LTB_EVIDENCE=""
 APPROVER=""
 TICKET=""
 ARCHIVE=""
@@ -45,6 +46,11 @@ Usage: decommission-dr.sh --confirm-unprotected --approver "<name>" --ticket "<c
   --confirm-unprotected  Acknowledge that this REMOVES disaster recovery protection.
   --approver             Name of the signing approver (business owner + risk). Required.
   --ticket               Change reference. Required.
+  --long-term-backup-evidence <file>
+                         Evidence that RMAN long-term (KEEP) backups were taken to Object Storage
+                         with cross-region copy and restore-tested. Required before stage 5:
+                         Recovery Service retains at most 95 days, so it cannot hold a records-
+                         retention copy, and stage 5 removes the only database outside Ashburn.
   --evidence-archive     Where to write the evidence tarball. Default: <evidence>/../evidence-archive-<UTC>.tar.gz
                          The archive is verified before stage 1 runs.
   --stop-after           Run stages 0..N then stop (1-7). Lets the decommission be
@@ -58,7 +64,8 @@ Stages:
   3  Terminate Phoenix Windows instances + boot/block volumes    (step 3)
   4  Delete Volume Group, FSS and Object Storage replication     (step 4)
   5  Remove Data Guard association; drop the Phoenix standby     (step 5)
-  6  RETAIN Autonomous Recovery Service backups -- nothing is executed (step 6)
+  6  Recovery Service backups are left to expire (max 95 days); long-term copies were
+     taken before stage 5 -- nothing is executed here (step 6)
   7  Delete the Phoenix VM cluster and Exadata infrastructure    (step 7)
 
 Refused by design:
@@ -74,6 +81,7 @@ while [[ $# -gt 0 ]]; do
     --approver)            APPROVER="$2"; shift 2 ;;
     --ticket)              TICKET="$2"; shift 2 ;;
     --evidence-archive)    ARCHIVE="$2"; shift 2 ;;
+    --long-term-backup-evidence) LTB_EVIDENCE="$2"; shift 2 ;;
     --stop-after)          STOP_AFTER="$2"; shift 2 ;;
     --dry-run)             DRY_RUN=1; shift ;;
     -h|--help)             usage; exit 0 ;;
@@ -189,7 +197,7 @@ if stage_gate 2; then
   banner "Stage 2 — Traffic Management steering policy and health checks (step 2)"
   if [[ -n "${DR_STEERING_POLICY_OCID:-}" ]]; then
     if [[ $DRY_RUN -eq 0 ]]; then
-      ATT=$(oci dns steering-policy-attachment list --steering-policy-id "$DR_STEERING_POLICY_OCID" --all 2>/dev/null | jq -r '.data[]?.id' || true)
+      ATT=$(oci dns steering-policy-attachment list --compartment-id "${PRIMARY_COMPARTMENT_OCID:-${DR_COMPARTMENT_OCID:?}}" --steering-policy-id "$DR_STEERING_POLICY_OCID" --all 2>/dev/null | jq -r '.data[]?.id' || true)
     else ATT="<attachments of $DR_STEERING_POLICY_OCID>"; fi
     for A in $ATT; do run oci dns steering-policy-attachment delete --steering-policy-attachment-id "$A" --force; done
     run oci dns steering-policy delete --steering-policy-id "$DR_STEERING_POLICY_OCID" --force
@@ -241,27 +249,36 @@ fi
 if stage_gate 5; then
   banner "Stage 5 — remove the Phoenix Data Guard member (step 5)"
   echo "  The Ashburn AD-2 SYNC standby (${DG_STANDBY_LOCAL:-EBSPROD_IAD2}) is local HA, not DR, and is NOT removed here."
-  if [[ -n "${DR_DG_ASSOCIATION_OCID:-}" && -n "${PRIMARY_DATABASE_OCID:-}" ]]; then
-    run oci db data-guard-association delete --database-id "$PRIMARY_DATABASE_OCID" --data-guard-association-id "$DR_DG_ASSOCIATION_OCID" --region "$PRIMARY_REGION" --force --wait-for-state TERMINATED
-    log 5 "delete Data Guard association (drops ${DG_STANDBY_REMOTE:-EBSPROD_PHX})" "$DR_DG_ASSOCIATION_OCID" "deleted"
+  if [[ $DRY_RUN -eq 0 && ( -z "$LTB_EVIDENCE" || ! -s "$LTB_EVIDENCE" ) ]]; then
+    cat >&2 <<'ERR'
+REFUSED: stage 5 removes the only copy of the database outside Ashburn, and Recovery
+Service keeps backups for at most 95 days. Take RMAN long-term (KEEP) backups to an
+Object Storage bucket with cross-region copy, restore-test them, and pass the evidence
+file with --long-term-backup-evidence before re-running from --stop-after 4.
+ERR
+    exit 3
+  fi
+  if [[ -n "${DR_STANDBY_DATABASE_OCID:-}" ]]; then
+    # Terminating the standby database resource removes it from the Data Guard configuration.
+    # (There is no 'data-guard-association delete' verb in the OCI CLI.)
+    run oci db database delete --database-id "$DR_STANDBY_DATABASE_OCID" --region "$DR_REGION" --force --wait-for-state TERMINATED
+    log 5 "terminate standby database ${DG_STANDBY_REMOTE:-EBSPROD_PHX}" "$DR_STANDBY_DATABASE_OCID" "terminated"
   elif command -v dgmgrl >/dev/null 2>&1 && [[ -n "${DG_CONNECT:-}" ]]; then
     run dgmgrl -silent "$DG_CONNECT" "remove database '${DG_STANDBY_REMOTE:-EBSPROD_PHX}'"
     log 5 "Broker remove database" "${DG_STANDBY_REMOTE:-EBSPROD_PHX}" "removed from configuration; drop the database in Phoenix manually"
   else
-    echo "  skipped: set DR_DG_ASSOCIATION_OCID + PRIMARY_DATABASE_OCID, or run from a host with dgmgrl"
+    echo "  skipped: set DR_STANDBY_DATABASE_OCID, or run from a host with dgmgrl"
   fi
 fi
 
 # --- Stage 6: backups are RETAINED ------------------------------------------
 if stage_gate 6; then
-  banner "Stage 6 — Autonomous Recovery Service backups RETAINED (step 6)"
+  banner "Stage 6 — Recovery Service backups left to expire; long-term copies already taken (step 6)"
   cat <<'NOTE'
-  Nothing is executed in this stage, by design. Backups are retained per the
-  records-retention schedule (evidence/README.md §Retention). Deleting them
-  with the infrastructure is the step that gets skipped and later regretted:
-  the moment the DR estate is gone, the cross-region copy is the ONLY copy of
-  the database outside Ashburn. Review retention with the risk function
-  separately, under its own change, after the retention period.
+  Nothing is executed in this stage, by design. Recovery Service keeps backups for
+  at most 95 days, so the records-retention copy is the RMAN long-term (KEEP)
+  backup set in Object Storage whose evidence gated stage 5. Do not delete the
+  Recovery Service protected database or its backups here; let them expire.
 NOTE
   log 6 "retain ARS backups" "${DR_PROTECTED_DB_OCIDS:-n/a}" "RETAINED (no action)"
 fi

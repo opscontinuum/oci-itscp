@@ -123,6 +123,10 @@ rejected by the service or is 0, which shuts the cluster down.
 ERR
     exit 3
   fi
+  if [[ -n "${NODES:-}" && "$NODES" =~ ^[0-9]+$ && "$NODES" -gt 0 && $(( target % (MIN_PER_VM * NODES) )) -ne 0 ]]; then
+    echo "REFUSED: ${target} is not a multiple of ${MIN_PER_VM} per VM across ${NODES} VMs (ExaDB-D scales in multiples of ${MIN_PER_VM} per database server; the API rejects other values)." >&2
+    exit 3
+  fi
   if [[ "$target" -lt "$FLOOR" ]]; then
     cat >&2 <<ERR
 REFUSED: target ${target} OCPU is below the configured floor of ${FLOOR} for ${CLUSTER}.

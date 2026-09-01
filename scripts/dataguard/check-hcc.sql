@@ -17,7 +17,7 @@ PROMPT === Tables using HCC ===
 SELECT owner, table_name AS segment_name, compress_for
   FROM dba_tables
  WHERE compression = 'ENABLED'
-   AND compress_for LIKE 'QUERY%' OR compress_for LIKE 'ARCHIVE%'
+   AND (compress_for LIKE 'QUERY%' OR compress_for LIKE 'ARCHIVE%')
  ORDER BY owner, table_name;
 
 PROMPT === Partitions using HCC ===

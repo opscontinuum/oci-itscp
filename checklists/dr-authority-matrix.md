@@ -24,8 +24,9 @@ Pre-agreed, so that no discussion is needed in the moment:
 
 1. **Local (Ashburn) failover is automatic.** Oracle Data Guard Fast-Start Failover with the Observer handles AD-level loss without human involvement [1].
 2. **Cross-region failover is never automatic.** It always requires a declared disaster. Full Stack DR's **Automatic DR** feature, which can trigger a plan on a Data Guard role change, is kept **disabled** for this reason (`docs/03-replication-matrix.md` §4) [2].
-3. **Estimated repair time greater than the Tier-0 MTD of 2 hours means declare.** Do not wait for certainty; the decision gate in RB-02 §0 exists to be used.
-4. **If RPO is breached, Concurrent Managers stay down** until Finance clears them. Automated batch processing on incomplete data is far harder to unwind than a longer outage.
+3. **Cross-region Fast-Start Failover is not configured, and that is a deliberate, not a safety, decision.** The Broker's observer fencing prevents split-brain regardless of distance [1] — the real reason is operational: a Phoenix database promoted by FSFO would have no running application tier to serve it until a human brings one up (`RB-02-failover.md` §0). A declared disaster with an explicit runbook is a better fit than an automatic promotion nobody was ready for.
+4. **Estimated repair time greater than the remaining MTD budget means declare** — MTD minus time already elapsed on the gate minus the ~60-minute failover RTO, not a flat 2-hour figure (`RB-02-failover.md` §0). Do not wait for certainty; the decision gate exists to be used.
+5. **If RPO is breached, Concurrent Managers stay down** until Finance clears them. Automated batch processing on incomplete data is far harder to unwind than a longer outage.
 
 ## Contact roster
 

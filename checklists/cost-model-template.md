@@ -15,9 +15,9 @@ Currency: ______  Pricing basis: ☐ list ☐ Universal Credits ☐ Annual Flex 
 | Block volume replica capacity | | | | boot + data, all nodes |
 | FSS provisioned capacity (PHX) | | | | |
 | Object Storage replica capacity | | | | |
-| Autonomous Recovery Service — protected DB (Ashburn) | | | | |
-| Autonomous Recovery Service — protected DB (Phoenix) | | | | there is no cross-region backup-copy feature; each region runs its own subscription, protecting that region's database [2][3] |
-| Autonomous Recovery Service — real-time redo transport | | | | extra-cost option, either or both regions [2] |
+| Autonomous Recovery Service — protected DB (whichever region is primary) | | | | **one active subscription at a time**, not one per region — automatic backup on a standby-role database is possible in principle, but only while the primary's own backup destination is Object Storage, so primary and standby cannot both be Recovery-Service-protected simultaneously [2][3]; there is no cross-region backup-copy feature |
+| Object Storage bucket — RMAN backup of the standby | | | | the standby's independent copy while it is ineligible for Recovery Service; customer-scheduled RMAN job, not an OCI-managed feature — bucket storage plus the bucket's retention rule |
+| Autonomous Recovery Service — real-time redo transport | | | | extra-cost option, on the currently active subscription [2] |
 | Full Stack Disaster Recovery — allocated OCPU/ECPU | | | | compute + database members, **both regions**, whether running or stopped [4] |
 | OCI Vault / DNS / Health Checks | | | | small, but list them |
 | **Fixed subtotal** | | | | |

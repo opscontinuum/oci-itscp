@@ -1,6 +1,6 @@
 # RB-03 — Failback: Phoenix → Ashburn
 
-**Type:** Planned project, not an incident response. **Elapsed time:** days to weeks (mostly waiting on baselines). **Cutover window:** 45–90 min.
+**Type:** Planned project, not an incident response. **Elapsed time:** days to weeks (mostly waiting on baselines) *(unverified: engineering estimate; depends on measured baseline durations, see `evidence/latency-baseline.md`)*. **Cutover window:** 45–90 min *(unverified: engineering estimate)*.
 
 > **Failback is not "switchover in reverse."** The database reverses in minutes; the storage tiers do not. Read `docs/03-replication-matrix.md` §2 before scheduling anything.
 
@@ -40,19 +40,26 @@ gantt
   DGMGRL> reinstate database EBSPROD_IAD;
   DGMGRL> show configuration verbose;
   ```
-  If Flashback Database was **not** enabled, this is instead a full `RMAN DUPLICATE TARGET DATABASE FOR STANDBY FROM ACTIVE DATABASE` *(unverified: engineering judgement; no documentation found in this revision)* — budget days and significant network transfer.
+  If Flashback Database was **not** enabled, this is instead a full `RMAN DUPLICATE TARGET DATABASE FOR STANDBY FROM ACTIVE DATABASE` [5] — budget days and significant network transfer.
+- [ ] **Re-enable Maximum Availability, restore Ashburn to SYNC transport, and re-enable fast-start failover** — RB-01 §2 downgraded these to switch over to Phoenix, and they do not come back automatically on reinstate:
+  ```sql
+  DGMGRL> edit database 'EBSPROD_IAD' set property LogXptMode='SYNC';
+  DGMGRL> edit configuration set protection mode as MaxAvailability;
+  DGMGRL> enable fast_start failover;
+  ```
+  Only do this once `EBSPROD_IAD` is reinstated and its lag has reached steady state *(unverified: engineering judgement; enabling Maximum Availability against a standby that has not caught up is expected to stall primary commits, but this was not confirmed in a fetched page)*. Once this step is done, RPO 0 is restored for as long as Ashburn stays primary (`scripts/dataguard/tnsnames-tuning.md` §4).
 - [ ] **Reverse Volume Group Replication** (PHX→IAD) baseline **complete** and in steady-state delta
 - [ ] **Reverse FSS File System Replication** baseline complete. A target file system that was never exported can be reused as a replication target without a full base copy; once it has been exported (as it was during the failover), reuse requires a full base copy [3].
 - [ ] **Reverse Object Storage Replication Policy** established and caught up. Creating a replication policy does **not** replicate objects already in the source bucket [4] — bulk-copy the Phoenix bucket contents to Ashburn *before* creating the reverse policy, not after.
 - [ ] Ashburn Windows instances rebuilt or refreshed from current **OCI Compute Custom Images**, patched to match Phoenix
-- [ ] **Oracle Database Autonomous Recovery Service** protection re-pointed and taking backups from the Phoenix primary
+- [ ] **Autonomous Recovery Service re-pointed to Ashburn.** Only one region's database can be protected by Recovery Service at a time (`RB-01-switchover.md` §6); enable it on `EBSPROD_IAD` now that it is primary again, and confirm Phoenix's independent copy reverts to the scheduled RMAN-to-Object-Storage backup of the standby described in `docs/01-architecture.md` §4.1
 - [ ] Any configuration drift accrued in Phoenix during the DR period has been replicated back or re-applied — **this is the most common failback defect.** See §4.
 - [ ] Full Stack DR DRPG roles reflect Phoenix-as-primary, and a Switchover plan to Ashburn exists and has passed prechecks
 - [ ] Business has approved a second outage window
 
 ## 3. The cutover itself
 
-Once entry criteria are met, **failback is RB-01 executed in the opposite direction.** Follow `runbooks/RB-01-switchover.md`, substituting Phoenix for Ashburn throughout. Do not write a separate procedure — a single, well-rehearsed switchover runbook that works both ways is safer than two divergent ones.
+Once entry criteria are met, **failback is RB-01 executed in the opposite direction.** Follow `runbooks/RB-01-switchover.md`, substituting Phoenix for Ashburn throughout — including its §2 protection-mode downgrade sequence, which still applies in this direction (Phoenix is the outgoing primary and has no synchronous standby of its own once Ashburn takes over). Do not write a separate procedure — a single, well-rehearsed switchover runbook that works both ways is safer than two divergent ones.
 
 ## 4. Drift reconciliation — the part that bites
 
@@ -88,8 +95,16 @@ unverified. Numbers restart per document. The consolidated index is `docs/refere
 2. *oci db database.* OCI CLI Command Reference 3.91.0, accessed 2026-09-01. <https://docs.oracle.com/en-us/iaas/tools/oci-cli/latest/oci_cli_docs/cmdref/db/database.html> — Supports: `create-standby-database`, `switch-over-data-guard`, `failover-data-guard`, `reinstate-data-guard` subcommands for the Data Guard Group model (§2).
 3. *Creating a Replication.* Oracle Cloud Infrastructure Documentation (File Storage), © 2026, accessed 2026-09-01. <https://docs.oracle.com/en-us/iaas/Content/File/Tasks/fsreplication-creating-a-replication.htm> — Supports: a never-exported former target can be reused and avoids a full base copy; an exported target requires one (§2).
 4. *Object Storage Replication.* Oracle Cloud Infrastructure Documentation, © 2026, accessed 2026-09-01. <https://docs.oracle.com/en-us/iaas/Content/Object/Tasks/usingreplication.htm> — Supports: "Objects uploaded to a source bucket before policy creation aren't replicated" (§2).
+5. *DUPLICATE.* RMAN Backup and Recovery Reference 19c, accessed 2026-09-01. <https://docs.oracle.com/en/database/oracle/oracle-database/19/rcmrf/DUPLICATE.html> — Supports: "To create a standby database with the DUPLICATE command you must specify the FOR STANDBY option"; "If you specify FROM ACTIVE DATABASE, then RMAN copies the data files from the primary to standby database" (§2).
+
+### Unverified statements
+
+- Header: elapsed time "days to weeks" — engineering estimate, depends on measured baseline durations.
+- Header: cutover window 45–90 min — engineering estimate (same figure as RB-01, executed in reverse).
+- §2: enabling Maximum Availability against a standby that has not reached steady state stalls primary commits — engineering judgement.
 
 [1]: https://docs.oracle.com/en/database/oracle/oracle-database/19/dgbkr/using-data-guard-broker-to-manage-switchovers-failovers.html "Switchover and Failover Operations — Oracle Data Guard Broker 19c"
 [2]: https://docs.oracle.com/en-us/iaas/tools/oci-cli/latest/oci_cli_docs/cmdref/db/database.html "oci db database — OCI CLI 3.91.0"
 [3]: https://docs.oracle.com/en-us/iaas/Content/File/Tasks/fsreplication-creating-a-replication.htm "Creating a Replication — Oracle File Storage"
 [4]: https://docs.oracle.com/en-us/iaas/Content/Object/Tasks/usingreplication.htm "Object Storage Replication — Oracle"
+[5]: https://docs.oracle.com/en/database/oracle/oracle-database/19/rcmrf/DUPLICATE.html "DUPLICATE — RMAN Backup and Recovery Reference 19c"

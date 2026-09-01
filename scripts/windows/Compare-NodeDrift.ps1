@@ -1,3 +1,4 @@
+#ps1
 <#
 .SYNOPSIS
     Audits local configuration drift on a Windows EBS node in the places that
