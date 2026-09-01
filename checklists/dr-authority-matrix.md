@@ -22,8 +22,8 @@ it signed. During an outage nobody should be researching whether they are allowe
 
 Pre-agreed, so that no discussion is needed in the moment:
 
-1. **Local (Ashburn) failover is automatic.** Oracle Data Guard Fast-Start Failover with the Observer handles AD-level loss without human involvement.
-2. **Cross-region failover is never automatic.** It always requires a declared disaster.
+1. **Local (Ashburn) failover is automatic.** Oracle Data Guard Fast-Start Failover with the Observer handles AD-level loss without human involvement [1].
+2. **Cross-region failover is never automatic.** It always requires a declared disaster. Full Stack DR's **Automatic DR** feature, which can trigger a plan on a Data Guard role change, is kept **disabled** for this reason (`docs/03-replication-matrix.md` §4) [2].
 3. **Estimated repair time greater than the Tier-0 MTD of 2 hours means declare.** Do not wait for certainty; the decision gate in RB-02 §0 exists to be used.
 4. **If RPO is breached, Concurrent Managers stay down** until Finance clears them. Automated batch processing on incomplete data is far harder to unwind than a longer outage.
 
@@ -41,3 +41,19 @@ Pre-agreed, so that no discussion is needed in the moment:
 | Oracle Support (CSI + severity-1 path) | | | | |
 
 Signed: Business owner __________  CIO __________  Risk __________  Date __________
+
+---
+
+## References
+
+This document is a synthesis: every statement about product behaviour or a standard is derived
+from the sources below, and any statement that could not be traced to a source is marked as
+unverified. Numbers restart per document. The consolidated index is `docs/references.md`.
+
+1. *Switchover and Failover Operations.* Oracle Data Guard Broker 19c (E96245-04), Oracle, accessed 2026-09-01.
+   <https://docs.oracle.com/en/database/oracle/oracle-database/19/dgbkr/using-data-guard-broker-to-manage-switchovers-failovers.html> — Supports: Fast-Start Failover, with an Observer on a separate host, transitions the primary role automatically without an administrator (Standing decisions).
+2. *Configure Automatic DR Plan Execution.* OCI Full Stack DR documentation, © 2026, accessed 2026-09-01.
+   <https://docs.oracle.com/en-us/iaas/disaster-recovery/doc/configure-automaticdr.html> — Supports: Full Stack DR can trigger a plan automatically when a Data Guard member changes role (Standing decisions).
+
+[1]: https://docs.oracle.com/en/database/oracle/oracle-database/19/dgbkr/using-data-guard-broker-to-manage-switchovers-failovers.html "Switchover and Failover Operations — Oracle Data Guard Broker 19c"
+[2]: https://docs.oracle.com/en-us/iaas/disaster-recovery/doc/configure-automaticdr.html "Configure Automatic DR Plan Execution — Oracle"

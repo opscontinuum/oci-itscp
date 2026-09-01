@@ -12,8 +12,10 @@ Escalate through them. Do not attempt Level 3 until Levels 1 and 2 are routine.
 | Level | Name | Mechanism | Production impact | Proves |
 |---|---|---|---|---|
 | **1** | Component test | **Full Stack DR plan prechecks** + `scripts/oci/check-replication-health.sh` | None | Replication is healthy, prechecks pass, Run Command plugin alive |
-| **2** | **Snapshot Standby drill** | **Oracle Data Guard Snapshot Standby** + **Full Stack DR Start Drill / Stop Drill plans** | None | Full EBS stack opens read-write in Phoenix, app tier starts, transactions commit |
+| **2** | **Snapshot Standby drill** | **Oracle Data Guard Snapshot Standby** + **Full Stack DR Start Drill / Stop Drill plans** [3] | None | Full EBS stack opens read-write in Phoenix, app tier starts, transactions commit |
 | **3** | Live switchover | `RB-01-switchover.md` against real production | Planned outage | Everything, including DNS, users, and partner integrations |
+
+A Start Drill plan creates a replica of the production stack in the standby DR protection group without interrupting production, and a Stop Drill plan removes that replica [3]. Oracle's own MAA guidance for EBS on OCI recommends using a snapshot standby for exactly this kind of DR-site testing [4].
 
 **Level 2 is the workhorse.** It is the one that gives you a real, measured MTD without an outage.
 
@@ -23,7 +25,7 @@ Escalate through them. Do not attempt Level 3 until Levels 1 and 2 are routine.
 
 ### How it works
 
-**Oracle Data Guard Snapshot Standby** converts the Phoenix physical standby into a fully read-write database, backed by a guaranteed restore point. You run a complete EBS DR rehearsal against it — real logins, real transactions, real concurrent requests. When finished, it converts back to a physical standby and **automatically applies all the redo that accumulated during the drill**. Nothing is lost, and DR protection is continuous throughout: redo keeps shipping from Ashburn the entire time, it simply queues rather than applying.
+**Oracle Data Guard Snapshot Standby** converts the Phoenix physical standby into a fully read-write database. A physical standby must have a Fast Recovery Area configured to convert, because a guaranteed restore point is created during the conversion and guaranteed restore points require an FRA [2] — Flashback Database itself does not need to be enabled for this [1]. You run a complete EBS DR rehearsal against it — real logins, real transactions, real concurrent requests. Redo data continues to be received from the primary while it operates as a snapshot standby, but it is not applied until the snapshot standby is converted back into a physical standby [1][2]. When finished, it converts back to a physical standby and **automatically applies all the redo that accumulated during the drill**, after discarding all local updates made during the drill [1]. Nothing is lost, and DR protection is continuous throughout: redo keeps shipping from Ashburn the entire time, it simply queues rather than applying.
 
 ```mermaid
 stateDiagram-v2
@@ -40,8 +42,9 @@ stateDiagram-v2
         Redo continues shipping from
         Ashburn throughout the drill.
         It queues, then applies on convert-back.
-        Requires Flashback Database + space
-        in the Fast Recovery Area.
+        Requires a Fast Recovery Area
+        (guaranteed restore point);
+        Flashback Database need not be enabled.
     end note
 ```
 
@@ -49,7 +52,7 @@ stateDiagram-v2
 
 **T-7 days**
 - [ ] Book the drill window and the participants — **including the EBS functional and Finance representatives.** A drill without them measures RTO only and leaves WRT unmeasured, which is the number you most need.
-- [ ] Confirm Fast Recovery Area has space for the drill's redo accumulation. **This is the usual failure.** Size it for the full drill duration plus margin; a full FRA during a drill will stall apply and can affect the real DR posture.
+- [ ] Confirm Fast Recovery Area has space for the drill's redo accumulation — the FRA is what the guaranteed restore point needs, not Flashback Database [1][2]. **This is the usual failure.** Size it for the full drill duration plus margin; a full FRA during a drill will stall apply and can affect the real DR posture.
 - [ ] Publish the scenario script (§3) — but withhold the injected surprise (§4) from the responders.
 
 **T-0 — convert and drill**
@@ -59,15 +62,16 @@ stateDiagram-v2
 DGMGRL> convert database EBSPROD_PHX to snapshot standby;
 DGMGRL> show database EBSPROD_PHX;   -- expect: SNAPSHOT STANDBY
 ```
+The Broker's DGMGRL command-line scenarios for converting a physical standby to a snapshot standby, and back, are documented in the Broker guide [2].
 
 ```bash
 # 2. Bring up the drill app tier via the Full Stack DR Start Drill plan,
 #    or manually against drill-only instances:
-./scripts/oci/set-dr-posture.sh --posture drill --region us-phoenix-1
+./scripts/oci/set-dr-posture.sh --posture drill --reason "RB-04 Level 2 drill <date>"   # region comes from the config
 powershell -File scripts/windows/Start-EBSAppTier.ps1 -Node ALL -RunCmClean -DrillMode
 ```
 
-- [ ] **Start the clock.** Record every timestamp in `evidence/drill-<date>.md` using `checklists/drill-timing-sheet.md`.
+- [ ] **Start the clock.** Record every timestamp in `evidence/drill-YYYY-MM-DD/timing.md` using `checklists/drill-timing-sheet.md`.
 - [ ] Execute the scenario script (§3)
 - [ ] Execute the WRT activities from `RB-02-failover.md` §6 — this is the whole point
 - [ ] **Stop the clock** at Finance sign-off, not at login. That elapsed time is your real MTD.
@@ -75,7 +79,7 @@ powershell -File scripts/windows/Start-EBSAppTier.ps1 -Node ALL -RunCmClean -Dri
 **T+drill — convert back**
 
 ```bash
-./scripts/oci/set-dr-posture.sh --posture warm --region us-phoenix-1
+./scripts/oci/set-dr-posture.sh --posture warm
 ```
 ```sql
 DGMGRL> convert database EBSPROD_PHX to physical standby;
@@ -88,7 +92,7 @@ DGMGRL> show configuration;   -- confirm apply resumes and lag returns to normal
 
 The drill database is a real EBS instance with real data. Before starting the app tier in drill mode, `Start-EBSAppTier.ps1 -DrillMode` enforces:
 
-- Workflow Mailer **disabled** — otherwise it emails real customers and suppliers
+- Workflow Mailer **disabled**, using Oracle's documented `wfmlpcln.sql` script to reset the notification mailer configuration and null the outbound SMTP server name on the copied instance [5] — otherwise it emails real customers and suppliers
 - Outbound integration endpoints **redirected to sinks** — no EDI, no payment files, no bank transmissions
 - Printers **redirected to a null queue**
 - Site-level profile banner set to **"DR DRILL — NOT PRODUCTION"**
@@ -125,13 +129,33 @@ Every drill from the third onward, the drill lead injects **one** undisclosed co
 
 ## 5. Evidence and improvement
 
-Every drill produces, in `evidence/drill-<date>/`:
+Every drill produces, in `evidence/drill-YYYY-MM-DD/`:
 
 - [ ] Timing sheet with measured **RTO** and **WRT** per tier
 - [ ] Scenario pass/fail with screenshots
-- [ ] FSDR plan execution log (exported from the Object Storage log bucket)
+- [ ] FSDR plan execution log (exported from the Object Storage log bucket — every DR Protection Group requires a dedicated log bucket for its plan execution logs [6])
 - [ ] Data Guard lag before, during, and after
 - [ ] Defect list with owners and due dates
 - [ ] Signed attestation from the business owner
 
 **Then update `docs/02-mtd-tiers.md` with the measured numbers.** The MTD figures in that document are design targets until a drill replaces them with evidence. Committing measured numbers back is what turns this from a document into a program.
+
+## References
+
+This document is a synthesis: every statement about product behaviour or a standard is derived
+from the sources below, and any statement that could not be traced to a source is marked as
+unverified. Numbers restart per document. The consolidated index is `docs/references.md`.
+
+1. *Managing Physical and Snapshot Standby Databases.* Oracle Data Guard Concepts and Administration 19c, accessed 2026-09-01. <https://docs.oracle.com/en/database/oracle/oracle-database/19/sbydb/managing-oracle-data-guard-physical-standby-databases.html> — Supports: "It is not necessary for flashback database to be enabled"; redo received from the primary while a snapshot standby is applied on conversion back to physical standby, after discarding local updates (§How it works, §T-7, §T-0).
+2. *Scenarios Using the DGMGRL Command-Line Interface.* Oracle Data Guard Broker 19c, E96245-04, accessed 2026-09-01. <https://docs.oracle.com/en/database/oracle/oracle-database/19/dgbkr/examples-using-data-guard-broker-DGMGRL-utility.html> — Supports: a physical standby must have a fast recovery area configured to convert to a snapshot standby, because a guaranteed restore point is created and guaranteed restore points require an FRA; redo continues to be received but is not applied until conversion back to physical standby; DGMGRL conversion scenarios (§How it works, §T-7, §T-0).
+3. *Types of Disaster Recovery Plans.* Oracle Cloud Infrastructure Documentation, © 2026, accessed 2026-09-01. <https://docs.oracle.com/en-us/iaas/disaster-recovery/doc/dr-plans-type.html> — Supports: a Start Drill plan creates a replica of the production stack in the standby DR protection group without interrupting production; a Stop Drill plan removes that replica (§1).
+4. *Maximum Availability Architecture: Oracle E-Business Suite on OCI.* Oracle, July 2025, Version 1.0, accessed 2026-09-01. <https://www.oracle.com/a/tech/docs/maaforebsonoci.pdf> — Supports: opening the standby in Snapshot Standby mode for application suite sanity testing (§1).
+5. *Oracle Workflow Administrator's Guide, Release 12.2.* Part No. E22008-22, September 2024, accessed 2026-09-01. <https://docs.oracle.com/cd/E26401_01/doc.122/e22008.pdf> — Supports: "you can run a script named wfmlpcln.sql to reset the notification mailer configurations and notification mail statuses", including nulling the Outbound Email Account (SMTP) Server Name (p. 2-99) (§Isolation).
+6. *Preparing Log Location for Operation Logs.* Oracle Cloud Infrastructure Documentation, © 2026, accessed 2026-09-01. <https://docs.oracle.com/en-us/iaas/disaster-recovery/doc/object-storage-for-logs.html> — Supports: use a separate dedicated Object Storage bucket for each DR Protection Group's plan execution logs (§5).
+
+[1]: https://docs.oracle.com/en/database/oracle/oracle-database/19/sbydb/managing-oracle-data-guard-physical-standby-databases.html "Managing Physical and Snapshot Standby Databases — Oracle Data Guard Concepts and Administration 19c"
+[2]: https://docs.oracle.com/en/database/oracle/oracle-database/19/dgbkr/examples-using-data-guard-broker-DGMGRL-utility.html "Scenarios Using the DGMGRL Command-Line Interface — Oracle Data Guard Broker 19c"
+[3]: https://docs.oracle.com/en-us/iaas/disaster-recovery/doc/dr-plans-type.html "Types of Disaster Recovery Plans — Oracle"
+[4]: https://www.oracle.com/a/tech/docs/maaforebsonoci.pdf "Maximum Availability Architecture: Oracle E-Business Suite on OCI — Oracle"
+[5]: https://docs.oracle.com/cd/E26401_01/doc.122/e22008.pdf "Oracle Workflow Administrator's Guide, Release 12.2 — Oracle"
+[6]: https://docs.oracle.com/en-us/iaas/disaster-recovery/doc/object-storage-for-logs.html "Preparing Log Location for Operation Logs — Oracle"

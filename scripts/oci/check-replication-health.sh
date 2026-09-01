@@ -8,6 +8,14 @@
 #
 set -uo pipefail
 
+# Takes no arguments: regions and resource OCIDs come from the resource config.
+if [[ $# -gt 0 ]]; then
+  case "$1" in
+    -h|--help) echo "Usage: check-replication-health.sh   (no arguments; config from DR_CONFIG or terraform/dr-resources.env)"; exit 0 ;;
+    *) echo "ERROR: unknown argument: $1. This script takes no arguments; set regions in the config." >&2; exit 3 ;;
+  esac
+fi
+
 CONFIG="${DR_CONFIG:-$(dirname "$0")/../../terraform/dr-resources.env}"
 [[ -f "$CONFIG" ]] || { echo "ERROR: config not found: $CONFIG" >&2; exit 3; }
 # shellcheck source=/dev/null

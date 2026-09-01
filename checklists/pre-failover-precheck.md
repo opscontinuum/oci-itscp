@@ -2,7 +2,7 @@
 
 Run **monthly**, and again immediately before any planned switchover or drill.
 OCI Full Stack Disaster Recovery plan prechecks validate member health; they cannot
-validate your EBS logic. This checklist covers that gap.
+validate your EBS logic [1]. This checklist covers that gap.
 
 Record results in `evidence/precheck-YYYY-MM-DD.md`.
 
@@ -16,13 +16,14 @@ Record results in `evidence/precheck-YYYY-MM-DD.md`.
 - [ ] FSS File System Replication delta status healthy
 - [ ] Object Storage Replication Policies all ACTIVE
 - [ ] Autonomous Recovery Service protected database health = PROTECTED
-- [ ] Oracle Flashback Database = YES on **all three** members
+- [ ] Oracle Flashback Database = YES on **all three** members (reinstate after failover)
 - [ ] Fast Recovery Area below 75% on all members
+- [ ] Fast Recovery Area has headroom for a guaranteed restore point on the Phoenix standby (Snapshot Standby drills need this; Flashback Database need not be enabled for it) [2]
 
 ## B. Orchestration
-- [ ] FSDR Switchover plan prechecks pass, no warnings
-- [ ] FSDR Failover plan prechecks pass
-- [ ] Start Drill / Stop Drill plans present and passing
+- [ ] FSDR Switchover plan prechecks pass, no warnings [1]
+- [ ] FSDR Failover plan prechecks pass [1]
+- [ ] Start Drill / Stop Drill plans present and passing [1]
 - [ ] Oracle Cloud Agent **Run Command plugin** RUNNING on every Phoenix Windows instance
 - [ ] FSDR plan execution log bucket writable
 - [ ] DRPG membership matches `docs/03-replication-matrix.md` §4 — no resource added since the last review is unprotected
@@ -30,7 +31,7 @@ Record results in `evidence/precheck-YYYY-MM-DD.md`.
 ## C. EBS readiness
 - [ ] `adop -status` clean — **no open online patching cycle**
 - [ ] `fs1`, `fs2` **and** `fs_ne` all present and replicating
-- [ ] `cmclean.sql` present at `scripts/ebs/cmclean.sql` and current
+- [ ] `cmclean.sql` present at `scripts/ebs/cmclean.sql` and current — its My Oracle Support note predates 12.2; confirm applicability with Oracle Support (`scripts/ebs/README.md`) [3]
 - [ ] `FND_NODES` contents match expected hostnames in both regions
 - [ ] EBS patch level identical across regions
 - [ ] Not in period close, or Finance has signed off
@@ -51,3 +52,22 @@ Record results in `evidence/precheck-YYYY-MM-DD.md`.
 
 > The last item is the one people fail. If the runbook lives on a wiki hosted in the
 > primary region, you do not have a runbook.
+
+---
+
+## References
+
+This document is a synthesis: every statement about product behaviour or a standard is derived
+from the sources below, and any statement that could not be traced to a source is marked as
+unverified. Numbers restart per document. The consolidated index is `docs/references.md`.
+
+1. *Prechecks Performed by Full Stack Disaster Recovery.* OCI Full Stack DR documentation, © 2026, accessed 2026-09-01.
+   <https://docs.oracle.com/en-us/iaas/disaster-recovery/doc/prechecks-disaster-recovery.html> — Supports: FSDR plan prechecks validate DR Protection Group, plan, and execution configuration, not application-level readiness (intro, §B).
+2. *Managing Physical and Snapshot Standby Databases.* Oracle Data Guard Concepts and Administration 19c, Oracle, accessed 2026-09-01.
+   <https://docs.oracle.com/en/database/oracle/oracle-database/19/sbydb/managing-oracle-data-guard-physical-standby-databases.html> — Supports: "Ensure that a fast recovery area has been configured. It is not necessary for flashback database to be enabled." for converting to a Snapshot Standby (§A).
+3. *Be Warned: cmclean.sql Is Dangerous!* Maris Elsins, Pythian blog, 2013-07-18, accessed 2026-09-01.
+   <https://www.pythian.com/blog/be-warned-cmclean-sql-is-dangerous/> — Supports: corroborates the title of My Oracle Support Doc ID 134007.1 and states the note "is valid for Applications versions 10.7 to 12.1.3" (§C).
+
+[1]: https://docs.oracle.com/en-us/iaas/disaster-recovery/doc/prechecks-disaster-recovery.html "Prechecks Performed by Full Stack Disaster Recovery — Oracle"
+[2]: https://docs.oracle.com/en/database/oracle/oracle-database/19/sbydb/managing-oracle-data-guard-physical-standby-databases.html "Managing Physical and Snapshot Standby Databases — Oracle"
+[3]: https://www.pythian.com/blog/be-warned-cmclean-sql-is-dangerous/ "Be Warned: cmclean.sql Is Dangerous! — Pythian"

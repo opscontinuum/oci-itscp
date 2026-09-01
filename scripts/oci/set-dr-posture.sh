@@ -95,7 +95,8 @@ ERR
 assert_replication_untouched() {
   # Defensive: this script must never be extended to delete replication.
   # Fail loudly if someone has wired those verbs in.
-  if grep -qE 'volume-group-replica delete|fs replication delete|os replication delete' "$0"; then
+  # The character class in the pattern keeps this line from matching itself.
+  if grep -qE 'volume-group-replica[ ]delete|fs[ ]replication[ ]delete|delete-replication[-]policy|make-bucket[-]writable' "$0"; then
     echo "REFUSED: this script must not delete replication resources. See docs/03-replication-matrix.md §3." >&2
     exit 3
   fi
@@ -116,8 +117,9 @@ scale_exadata() {
   local cores="$1"
   assert_ocpu_sane "$cores"
   echo "-> Scaling ExaDB-D VM Cluster to ${cores} OCPU (online)"
-  run oci db vm-cluster update \
-        --vm-cluster-id "$DR_VMCLUSTER_OCID" \
+  # ExaDB-D in OCI is `cloud-vm-cluster`; `vm-cluster` is the Exadata Cloud@Customer group.
+  run oci db cloud-vm-cluster update \
+        --cloud-vm-cluster-id "$DR_VMCLUSTER_OCID" \
         --cpu-core-count "$cores" \
         --region "$DR_REGION" \
         --wait-for-state AVAILABLE

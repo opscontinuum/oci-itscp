@@ -1,5 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 400" width="880" height="400" role="img" aria-label="Comparison of four DR tiers showing maximum tolerable downtime on a logarithmic scale against relative run cost">
   <style>
+    :root { color-scheme: light dark; }
     .bg  { fill: #ffffff; }
     .txt { fill: #1a1a1a; font-family: ui-sans-serif, "Segoe UI", Helvetica, Arial, sans-serif; }
     .mut { fill: #5c6470; font-family: ui-sans-serif, "Segoe UI", Helvetica, Arial, sans-serif; }
@@ -9,6 +10,15 @@
     .sub { font-size: 11px; }
     .val { font-size: 12.5px; font-weight: 700; }
     .ax  { font-size: 10.5px; }
+
+    /* Text drawn ON A FIXED-COLOUR PILL or BAR keeps a fixed colour in both themes,
+       because the pill/bar background does not follow the theme. Such elements must
+       NOT carry .txt: a presentation attribute has specificity 0 and loses to it. */
+    .on-r { fill: #a50e0e; }
+    .on-b { fill: #0b57d0; }
+    .on-o { fill: #a15800; }
+    .on-g { fill: #0d652d; }
+    .on-w { fill: #ffffff; }
     @media (prefers-color-scheme: dark) {
       .bg  { fill: #14161a; }
       .txt { fill: #eceff3; }
@@ -39,36 +49,36 @@
   <text class="txt nm" x="24" y="96">Tier 0 · Platinum</text>
   <text class="mut sub" x="24" y="112">hot standby · core financials</text>
   <rect x="250" y="82" width="70" height="30" rx="5" fill="#137333" opacity="0.88"/>
-  <text class="txt val" x="334" y="102" fill="#0d652d">MTD ≤ 2 hr</text>
+  <text class="txt val" x="334" y="102">MTD ≤ 2 hr</text>
   <text class="mut sub" x="432" y="102">RPO 0 → &lt;30 s · RTO ≤ 60 min · WRT ~30 min</text>
   <rect x="770" y="84" width="86" height="26" rx="13" fill="#fdecea" stroke="#d93025" stroke-width="1.2"/>
-  <text class="val" x="813" y="101" text-anchor="middle" fill="#a50e0e">~90–100%</text>
+  <text class="on-r val" x="813" y="101" text-anchor="middle">~90–100%</text>
 
   <!-- Tier 1 -->
   <text class="txt nm" x="24" y="161">Tier 1 · Gold</text>
   <text class="mut sub" x="24" y="177">warm pilot light · full app tier</text>
   <rect x="250" y="147" width="182" height="30" rx="5" fill="#1a73e8" opacity="0.88"/>
-  <text class="txt val" x="446" y="167" fill="#0b57d0">MTD ≤ 6 hr</text>
+  <text class="txt val" x="446" y="167">MTD ≤ 6 hr</text>
   <text class="mut sub" x="544" y="167">RPO ≤ 5 min · RTO ≤ 4 hr · WRT ~2 hr</text>
   <rect x="770" y="149" width="86" height="26" rx="13" fill="#fef4e0" stroke="#e37400" stroke-width="1.2"/>
-  <text class="val" x="813" y="166" text-anchor="middle" fill="#b06000">~45–60%</text>
+  <text class="on-o val" x="813" y="166" text-anchor="middle">~45–60%</text>
 
   <!-- Tier 2 -->
   <text class="txt nm" x="24" y="226">Tier 2 · Silver</text>
   <text class="mut sub" x="24" y="242">cold pre-staged · BI / reporting</text>
   <rect x="250" y="212" width="322" height="30" rx="5" fill="#e37400" opacity="0.88"/>
-  <text class="txt val" x="586" y="232" fill="#b06000">MTD ≤ 24 hr</text>
+  <text class="txt val" x="586" y="232">MTD ≤ 24 hr</text>
   <text class="mut sub" x="690" y="232">RPO ≤ 1 hr · RTO ≤ 12 hr</text>
   <rect x="770" y="252" width="86" height="26" rx="13" fill="#e6f0fd" stroke="#1a73e8" stroke-width="1.2"/>
-  <text class="val" x="813" y="269" text-anchor="middle" fill="#0b57d0">~20–30%</text>
+  <text class="on-b val" x="813" y="269" text-anchor="middle">~20–30%</text>
 
   <!-- Tier 3 -->
   <text class="txt nm" x="24" y="291">Tier 3 · Bronze</text>
   <text class="mut sub" x="24" y="307">backup &amp; restore · non-prod</text>
-  <rect x="250" y="277" width="486" height="30" rx="5" fill="#9aa3ad" opacity="0.85"/>
-  <text class="txt val" x="600" y="297" text-anchor="middle" fill="#ffffff">MTD ≤ 5 days</text>
+  <rect x="250" y="277" width="486" height="30" rx="5" fill="#6b7683"/>
+  <text class="on-w val" x="600" y="297" text-anchor="middle">MTD ≤ 5 days</text>
   <rect x="770" y="317" width="86" height="26" rx="13" fill="#e3f5e8" stroke="#137333" stroke-width="1.2"/>
-  <text class="val" x="813" y="334" text-anchor="middle" fill="#0d652d">~5–10%</text>
+  <text class="on-g val" x="813" y="334" text-anchor="middle">~5–10%</text>
 
   <text class="mut sub" x="770" y="70" text-anchor="middle">run cost</text>
   <text class="mut sub" x="24" y="382">Tier 3 bar is truncated at the axis edge — 5 days extends beyond the plotted range.</text>

@@ -23,7 +23,7 @@ gantt
     Reverse FSS File System Replication baseline :crit, c1, 0, 10
     Steady-state delta replication               :c2, 10, 18
     section Object Storage
-    Reverse Replication Policy re-scan         :crit, d1, 0, 6
+    Bulk copy existing objects, then reverse policy  :crit, d1, 0, 6
     Steady state                               :d2, 6, 18
     section Cutover
     Readiness review + CAB                     :e1, 18, 20
@@ -35,15 +35,15 @@ gantt
 ## 2. Entry criteria — all must be true
 
 - [ ] Ashburn region and ExaDB-D infrastructure fully restored and burned in
-- [ ] `EBSPROD_IAD` **reinstated** as a healthy standby, applying redo, lag at steady state
+- [ ] `EBSPROD_IAD` **reinstated** as a healthy standby, applying redo, lag at steady state. Reinstate makes a failed primary a viable standby for the new primary, but succeeds only if Flashback Database was enabled on the database prior to the failover with sufficient flashback logs retained [1] — this can also be driven through the OCI control plane as part of the Data Guard Group model, with `oci db database reinstate-data-guard` alongside `create-standby-database` / `switch-over-data-guard` / `failover-data-guard` [2].
   ```sql
   DGMGRL> reinstate database EBSPROD_IAD;
   DGMGRL> show configuration verbose;
   ```
-  If Flashback Database was **not** enabled, this is instead a full `RMAN DUPLICATE TARGET DATABASE FOR STANDBY FROM ACTIVE DATABASE` — budget days and significant network transfer.
+  If Flashback Database was **not** enabled, this is instead a full `RMAN DUPLICATE TARGET DATABASE FOR STANDBY FROM ACTIVE DATABASE` *(unverified: engineering judgement; no documentation found in this revision)* — budget days and significant network transfer.
 - [ ] **Reverse Volume Group Replication** (PHX→IAD) baseline **complete** and in steady-state delta
-- [ ] **Reverse FSS File System Replication** baseline complete
-- [ ] **Reverse Object Storage Replication Policy** established and caught up
+- [ ] **Reverse FSS File System Replication** baseline complete. A target file system that was never exported can be reused as a replication target without a full base copy; once it has been exported (as it was during the failover), reuse requires a full base copy [3].
+- [ ] **Reverse Object Storage Replication Policy** established and caught up. Creating a replication policy does **not** replicate objects already in the source bucket [4] — bulk-copy the Phoenix bucket contents to Ashburn *before* creating the reverse policy, not after.
 - [ ] Ashburn Windows instances rebuilt or refreshed from current **OCI Compute Custom Images**, patched to match Phoenix
 - [ ] **Oracle Database Autonomous Recovery Service** protection re-pointed and taking backups from the Phoenix primary
 - [ ] Any configuration drift accrued in Phoenix during the DR period has been replicated back or re-applied — **this is the most common failback defect.** See §4.
@@ -77,3 +77,19 @@ While running in Phoenix, changes were made that must not be lost:
 - [ ] Phoenix compute returned to pilot-light posture (`scripts/oci/set-dr-posture.sh --posture warm`)
 - [ ] ExaDB-D Phoenix VM Cluster scaled back to the OCPU floor
 - [ ] Post-incident review completed; MTD tier targets in `docs/02-mtd-tiers.md` updated with **measured** RTO and WRT from the real event
+
+## References
+
+This document is a synthesis: every statement about product behaviour or a standard is derived
+from the sources below, and any statement that could not be traced to a source is marked as
+unverified. Numbers restart per document. The consolidated index is `docs/references.md`.
+
+1. *Switchover and Failover Operations.* Oracle Data Guard Broker 19c, E96245-04, accessed 2026-09-01. <https://docs.oracle.com/en/database/oracle/oracle-database/19/dgbkr/using-data-guard-broker-to-manage-switchovers-failovers.html> — Supports: reinstate makes a failed primary a viable standby for the new primary; it succeeds only when Flashback Database was enabled prior to the failover with sufficient flashback logs retained (§2).
+2. *oci db database.* OCI CLI Command Reference 3.91.0, accessed 2026-09-01. <https://docs.oracle.com/en-us/iaas/tools/oci-cli/latest/oci_cli_docs/cmdref/db/database.html> — Supports: `create-standby-database`, `switch-over-data-guard`, `failover-data-guard`, `reinstate-data-guard` subcommands for the Data Guard Group model (§2).
+3. *Creating a Replication.* Oracle Cloud Infrastructure Documentation (File Storage), © 2026, accessed 2026-09-01. <https://docs.oracle.com/en-us/iaas/Content/File/Tasks/fsreplication-creating-a-replication.htm> — Supports: a never-exported former target can be reused and avoids a full base copy; an exported target requires one (§2).
+4. *Object Storage Replication.* Oracle Cloud Infrastructure Documentation, © 2026, accessed 2026-09-01. <https://docs.oracle.com/en-us/iaas/Content/Object/Tasks/usingreplication.htm> — Supports: "Objects uploaded to a source bucket before policy creation aren't replicated" (§2).
+
+[1]: https://docs.oracle.com/en/database/oracle/oracle-database/19/dgbkr/using-data-guard-broker-to-manage-switchovers-failovers.html "Switchover and Failover Operations — Oracle Data Guard Broker 19c"
+[2]: https://docs.oracle.com/en-us/iaas/tools/oci-cli/latest/oci_cli_docs/cmdref/db/database.html "oci db database — OCI CLI 3.91.0"
+[3]: https://docs.oracle.com/en-us/iaas/Content/File/Tasks/fsreplication-creating-a-replication.htm "Creating a Replication — Oracle File Storage"
+[4]: https://docs.oracle.com/en-us/iaas/Content/Object/Tasks/usingreplication.htm "Object Storage Replication — Oracle"

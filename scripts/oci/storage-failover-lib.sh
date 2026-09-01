@@ -14,7 +14,13 @@
 #
 set -euo pipefail
 
-EVIDENCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../evidence" && pwd)"
+EVIDENCE_DIR="${DR_EVIDENCE_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../evidence" && pwd)}"
+
+# Resource inventory (DR_OS_NAMESPACE, DR_COMPARTMENT_OCID, regions). Optional here:
+# each script validates the variables it actually needs.
+CONFIG="${DR_CONFIG:-$(dirname "${BASH_SOURCE[0]}")/../../terraform/dr-resources.env}"
+# shellcheck source=/dev/null
+[[ -f "$CONFIG" ]] && source "$CONFIG"
 
 # require_confirm <action-description> <confirm-flag-value>
 require_confirm() {
@@ -38,13 +44,16 @@ ERR
   fi
 }
 
+# TICKET may be set by the calling script (--ticket); it is written into the Notes column.
+TICKET="${TICKET:-}"
+
 # record <resource-type> <resource-id> <action> [notes]
 record() {
   local ts; ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   local f="${EVIDENCE_DIR}/storage-failover-log.md"
   [[ -f "$f" ]] || printf '# Storage Failover Log\n\nOne-way-door actions. Each row implies a future full baseline copy.\n\n| UTC | Resource type | Resource | Action | Operator | Notes |\n|---|---|---|---|---|---|\n' > "$f"
   printf '| %s | %s | %s | %s | %s | %s |\n' \
-    "$ts" "$1" "$2" "$3" "${USER:-unknown}" "${4:-}" >> "$f"
+    "$ts" "$1" "$2" "$3" "${USER:-unknown}" "${TICKET:+ticket $TICKET; }${4:-}" >> "$f"
   echo "  evidence recorded -> $f"
 }
 

@@ -63,15 +63,19 @@ if ($DrillMode) {
     Info 'DRILL MODE — enforcing isolation controls (RB-04 §2)'
     $isolation = @{}
 
-    # (a) Workflow Mailer must be disabled — otherwise it mails real customers.
+    # (a) Workflow Mailer must be unable to send — otherwise it mails real customers.
+    #     Oracle's documented tool for a copied instance is $FND_TOP/sql/wfmlpcln.sql, which
+    #     resets the notification mailer configuration and nulls the outbound SMTP server
+    #     name (Oracle Workflow Administrator's Guide 12.2, "Cloning"). A snapshot standby
+    #     drill IS a copied instance that is discarded on convert-back, so this is the
+    #     right tool. Direct updates to the mailer parameter tables are undocumented and
+    #     deliberately not used here.
     $isolation['WorkflowMailer'] = {
-        & sqlplus -s "$env:APPS_CONN" @"
-UPDATE fnd_svc_comp_param_vals SET parameter_value = 'DISABLED'
- WHERE parameter_id IN (SELECT parameter_id FROM fnd_svc_comp_params_tl
-                         WHERE parameter_name = 'OUTBOUND_SERVER');
-COMMIT;
-exit
-"@
+        $fndTop = $env:FND_TOP
+        if (-not $fndTop) { return $false }
+        $wfmlpcln = Join-Path $fndTop 'sql\wfmlpcln.sql'
+        if (-not (Test-Path $wfmlpcln)) { return $false }
+        & sqlplus -s "$env:APPS_CONN" "@$wfmlpcln"
         return $LASTEXITCODE -eq 0
     }
 

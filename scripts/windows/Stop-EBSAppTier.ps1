@@ -11,9 +11,9 @@
       3. Stop Workflow Mailer
       4. Stop web / forms services
 
-    Stopping the web tier before the Concurrent Managers strands running requests
-    and produces exactly the stale FND_CONCURRENT_QUEUES rows that force a
-    cmclean.sql on the far side.
+    Stopping the web tier before the Concurrent Managers strands running requests.
+    Stale FND_CONCURRENT_QUEUES / ICM rows on the far side are the usual result
+    (engineering judgement; see the cmclean applicability note in scripts/ebs/README.md).
 
 .PARAMETER GraceSeconds
     How long to wait for in-flight concurrent requests before escalating.

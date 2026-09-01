@@ -19,7 +19,7 @@ echo "=== Switchover readiness (validate) ==="
 dgmgrl -silent "$CONN" "validate database '${DG_STANDBY_REMOTE:-EBSPROD_PHX}'"
 
 echo
-echo "=== Flashback Database status (required for reinstate + snapshot standby drills) ==="
+echo "=== Flashback Database status (required for REINSTATE after failover) and FRA (required for snapshot standby drills) ==="
 sqlplus -s /nolog <<SQL
 connect $CONN
 SET HEADING ON PAGESIZE 50 LINESIZE 160
@@ -34,5 +34,6 @@ exit
 SQL
 
 echo
-echo "NOTE: FLASHBACK_ON must be YES on all three members."
-echo "      Without it: no reinstate after failover (RB-03), and no snapshot standby drills (RB-04)."
+echo "NOTE: FLASHBACK_ON must be YES on all three members: without it a failed primary cannot be"
+echo "      reinstated after failover (RB-03). Snapshot standby drills (RB-04) need a configured Fast"
+echo "      Recovery Area with headroom for the guaranteed restore point; they do not need FLASHBACK_ON."

@@ -1,32 +1,58 @@
 #!/usr/bin/env bash
-# objectstore-failover.sh — R7: make an OCI Object Storage destination bucket
-# writable by deleting its Replication Policy. Part of RB-02 §4.
+# objectstore-failover.sh — R7: make an OCI Object Storage DESTINATION bucket
+# writable. Part of RB-02 §4.
+#
+# Two operations, in this order:
+#   1. make-bucket-writable on the DESTINATION bucket (Phoenix). This is the
+#      documented destination-side action and works even when the source region
+#      is unreachable, which is the regional-loss case this runbook exists for.
+#      Once done, the destination stops accepting replication from the source and
+#      the source policy's status changes to a client error state.
+#   2. delete-replication-policy on the SOURCE bucket (Ashburn), best-effort.
+#      Deleting a policy is permanent. It fails harmlessly if Ashburn is down;
+#      do it during RB-03 §2 instead.
+#
+# Re-establishing replication later does NOT copy objects that already exist
+# in the source bucket: only objects uploaded after policy creation replicate.
+# Failback therefore needs an explicit bulk copy first (RB-03 §2).
 set -euo pipefail
 source "$(dirname "$0")/storage-failover-lib.sh"
 
-BUCKET=""; POLICY=""; NS=""; REGION=""; CONFIRM=0
+DEST_BUCKET=""; DEST_REGION=""; SRC_BUCKET=""; POLICY=""; SRC_REGION=""; NS=""; CONFIRM=0; TICKET=""
 while [[ $# -gt 0 ]]; do case "$1" in
-  --bucket)    BUCKET="$2"; shift 2 ;;
-  --policy)    POLICY="$2"; shift 2 ;;
-  --namespace) NS="$2"; shift 2 ;;
-  --region)    REGION="$2"; shift 2 ;;
-  --confirm)   CONFIRM=1; shift ;;
-  *) echo "Usage: $0 --bucket <name> --policy <id> --namespace <ns> --region <region> --confirm" >&2; exit 2 ;;
+  --bucket)         DEST_BUCKET="$2"; shift 2 ;;
+  --region)         DEST_REGION="$2"; shift 2 ;;
+  --source-bucket)  SRC_BUCKET="$2"; shift 2 ;;
+  --policy)         POLICY="$2"; shift 2 ;;
+  --source-region)  SRC_REGION="$2"; shift 2 ;;
+  --namespace)      NS="$2"; shift 2 ;;
+  # shellcheck disable=SC2034  # consumed by record() in storage-failover-lib.sh
+  --ticket)         TICKET="$2"; shift 2 ;;
+  --confirm)        CONFIRM=1; shift ;;
+  *) echo "Usage: $0 --bucket <destination-bucket> --region <destination-region> [--source-bucket <name> --policy <id> --source-region <region>] [--namespace <ns>] [--ticket <change-ref>] --confirm" >&2; exit 2 ;;
 esac; done
 NS="${NS:-${DR_OS_NAMESPACE:-}}"
-[[ -n "$BUCKET" && -n "$POLICY" && -n "$NS" ]] || { echo "ERROR: --bucket, --policy and --namespace required" >&2; exit 2; }
+DEST_REGION="${DEST_REGION:-${DR_REGION:-}}"
+SRC_REGION="${SRC_REGION:-${PRIMARY_REGION:-}}"
+[[ -n "$DEST_BUCKET" && -n "$DEST_REGION" && -n "$NS" ]] || { echo "ERROR: --bucket, --region and --namespace required" >&2; exit 2; }
 
-require_confirm "delete Object Storage replication policy on $BUCKET" "$CONFIRM"
+require_confirm "make destination bucket $DEST_BUCKET writable (breaks replication)" "$CONFIRM"
 
-echo "-> Current policy status"
-oci os replication get-replication-policy --bucket-name "$BUCKET" --replication-id "$POLICY" \
-  --namespace "$NS" ${REGION:+--region "$REGION"} \
-  | jq -r '.data | "   status: \(.status)  destination: \(.["destination-bucket-name"]) @ \(.["destination-region-name"])"'
+echo "-> Making destination bucket writable: $DEST_BUCKET @ $DEST_REGION"
+oci os replication make-bucket-writable --bucket-name "$DEST_BUCKET" --namespace "$NS" --region "$DEST_REGION"
+record "ObjectStorage/DestinationBucket" "$DEST_BUCKET@$DEST_REGION" "MADE WRITABLE - replication from source broken"
 
-echo "-> Deleting replication policy (destination bucket becomes writable)"
-oci os replication delete-replication-policy --bucket-name "$BUCKET" --replication-id "$POLICY" \
-  --namespace "$NS" ${REGION:+--region "$REGION"} --force
+if [[ -n "$SRC_BUCKET" && -n "$POLICY" && -n "$SRC_REGION" ]]; then
+  echo "-> Deleting source replication policy (best-effort; fails harmlessly if $SRC_REGION is down)"
+  if oci os replication delete-replication-policy --bucket-name "$SRC_BUCKET" --replication-id "$POLICY" \
+       --namespace "$NS" --region "$SRC_REGION" --force 2>/dev/null; then
+    record "ObjectStorage/ReplicationPolicy" "$SRC_BUCKET:$POLICY" "DELETED on source"
+  else
+    echo "   source policy not deleted (source unreachable?). Delete it in RB-03 §2 before creating the reverse policy."
+  fi
+else
+  echo "-> Source policy not specified; delete it in RB-03 §2 before creating the reverse policy."
+fi
 
-record "ObjectStorage/ReplicationPolicy" "$BUCKET:$POLICY" "DELETED - destination writable"
-warn_failback_cost "OCI Object Storage - Replication Policy on $BUCKET"
-echo "NEXT: verify EBS interface processes can write to the destination bucket."
+warn_failback_cost "OCI Object Storage - replication to $DEST_BUCKET (existing objects will need a bulk copy before a new policy)"
+echo "NEXT: verify EBS interface processes can write to $DEST_BUCKET."
