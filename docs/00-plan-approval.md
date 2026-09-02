@@ -3,7 +3,7 @@
 The statement that turns this document set from a *design* into a *plan*: a named authority
 affirms that it is complete, that it has been tested sufficiently, and that they own its
 continued maintenance and testing. NIST SP 800-34 Rev. 1 puts this element first in its ISCP
-template — above "1. Introduction" — at every FIPS 199 impact level [1][2].
+template — above "1. Introduction" — at every FIPS 199 impact level [1].
 
 > ### ⚠️ Placeholder signatories only
 >
@@ -95,6 +95,10 @@ at what level is not worth the signature.
 - After a real invocation of RB-02 and the subsequent RB-03 failback.
 - The designated authority changes. Approval does not transfer with the job title.
 
+These triggers are this plan's own. They cover re-approval of the statement, which is one
+part of gap G3 in [`docs/07-itil4-alignment.md`](07-itil4-alignment.md) §3 (no stated
+review cadence); the plan-maintenance section G3 asks for in the README is still open.
+
 ### Signatures
 
 | Role | Name | Title | Signature | Date |
@@ -128,18 +132,35 @@ of the warning at the top.
 
 ## References
 
-1. NIST SP 800-34 Rev. 1, *Contingency Planning Guide for Federal Information Systems*
-   (May 2010), Appendix A, "Plan Approval". Low-impact template A.1, printed page A.1-3
-   (PDF p. 75); moderate-impact template A.2, printed page A.2-3 (PDF p. 89); high-impact
-   template A.3, printed page A.3-3 (PDF p. 105). The requirement text is identical in all
-   three. Sample language on the same pages commits to annual testing, cites the last test
-   date and the location of TT&E material, and keeps the plan under version control.
-   *Supports:* §2 (the four things the statement must affirm; the required signature is the
-   designated authority's), §3 (structure and content of the template statement).
-2. NIST SP 800-34 Rev. 1, Appendix A introduction (printed page A.1-1, PDF p. 73): "Appendix
-   A.1 can be used for low-impact systems, Appendix A.2 for moderate-impact systems, and
-   Appendix A.3 for high-impact systems." Each template's table of contents (printed A.1-2,
-   A.2-2, A.3-2) lists "Plan Approval" as its first, unnumbered element, above
-   "1. Introduction".
-   *Supports:* the opening claim that the statement is required at every impact level and
-   precedes the plan body.
+This document is a synthesis: every statement about product behaviour or a standard is derived
+from the sources below, and any statement that could not be traced to a source is marked as
+unverified. Numbers restart per document. The consolidated index is `docs/references.md`.
+
+1. *Contingency Planning Guide for Federal Information Systems.* NIST Special Publication
+   800-34 Rev. 1, May 2010 (errata 2010-11-11), accessed 2026-09-02.
+   <https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-34r1.pdf> —
+   Supports: the "Plan Approval" requirement quoted in §2, verbatim from Appendix A, printed
+   page A.1-3 (PDF p. 75); the same text appears at A.2-3 (PDF p. 89) and A.3-3 (PDF p. 105).
+   The Appendix A introduction (printed A.1-1, PDF p. 73) states "Appendix A.1 can be used
+   for low-impact systems, Appendix A.2 for moderate-impact systems, and Appendix A.3 for
+   high-impact systems", and each template's table of contents (printed A.1-2, A.2-2, A.3-2)
+   lists "Plan Approval" as its first, unnumbered element above "1. Introduction" — the
+   opening claim that the statement is required at every impact level and precedes the plan
+   body. The sample language on the same pages as the requirement is signed by
+   "{System Owner Name}" and "{System Owner Title}", attests the plan "will be tested at
+   least annually", cites the last test date and the location of the TT&E material, and
+   keeps the plan "under version control" — the four affirmations in §2 and the structure of
+   the template statement in §3.
+
+### Unverified statements
+
+- The requirement that the test cited in the statement be a Level 2 Snapshot Standby drill
+  or higher, and the list of re-approval triggers, are this plan's own decisions. NIST's
+  sample language commits only to testing at least annually and to citing the last test [1];
+  the drill levels are defined by this plan in `runbooks/RB-04-dr-drill.md` §1.
+- The choice of additional signatories (business owner, CIO, risk) mirrors the sign-off
+  lines already used in `checklists/` and is not prescribed by NIST, which requires only
+  the designated authority's signature and leaves "other applicable approving signatures"
+  to the organisation [1].
+
+[1]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-34r1.pdf "NIST SP 800-34 Rev. 1 — Contingency Planning Guide for Federal Information Systems"
