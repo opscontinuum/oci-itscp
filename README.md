@@ -57,6 +57,7 @@ Read it straight through in this order. It is written to be read, not just refer
 6. [`docs/07-itil4-alignment.md`](docs/07-itil4-alignment.md) — how the vocabulary maps to ITIL 4, ISO 22301, NIST and DoD instruments
 7. [`docs/00-plan-approval.md`](docs/00-plan-approval.md) — the approval statement that makes it a plan rather than a design; unsigned here by design
 8. [`checklists/contingency-training.md`](checklists/contingency-training.md) — the training programme NIST SP 800-34 keeps separate from drills: annual syllabus, new-joiner path, closed-book evidence
+9. [`checklists/contact-roster.md`](checklists/contact-roster.md) — who is notified, in what order, and how they are reached; the contact-list appendix NIST SP 800-34 expects
 
 ### If you are building a real plan from this
 
