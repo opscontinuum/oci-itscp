@@ -1,6 +1,6 @@
 ---
-name: iscp-compliance-audit
-description: Adversarial audit of this plan against NIST SP 800-34 Rev. 1, the NIST SP 800-53 Rev. 5 CP family, the FedRAMP High baseline, DoDI 8510.01 and CNSSI 1253. Every requirement starts REFUTED, every requirement gets a verdict, and "not assessed" is not a verdict. Produces docs/compliance-audit.md.
+name: itscp-compliance-audit
+description: Adversarial audit of this IT service continuity plan (ITSCP) against NIST SP 800-34 Rev. 1, the NIST SP 800-53 Rev. 5 CP family, the FedRAMP High baseline, DoDI 8510.01 and CNSSI 1253. Every requirement starts REFUTED, every requirement gets a verdict, and "not assessed" is not a verdict. Produces docs/compliance-audit.md.
 ---
 This skill drives a compliance audit of the plan in this repository to the same standard as
 `docs/citation-audit.md`: the default position for every requirement is *refuted* until a
@@ -19,6 +19,18 @@ paraphrase an instrument from memory.
 **In scope.** `README.md`, `docs/01`–`docs/07`, `runbooks/RB-01`–`RB-05`, every file in
 `checklists/`, `evidence/README.md`, `scripts/ebs/README.md`, `scripts/dataguard/tnsnames-tuning.md`,
 `terraform/README.md`. Scripts and Terraform are evidence only where a document points at them.
+
+**What is being audited against what.** The document under audit is an IT service continuity
+plan (ITSCP), the ITIL service-level artefact named in the `README.md` title. NIST SP 800-34
+specifies an Information System Contingency Plan (ISCP), a system-level artefact, and the
+other four instruments select or parameterise SP 800-53 controls written for that ISCP. The
+ITSCP aligns *to* the ISCP structure; it is not one. Every row therefore assesses an ISCP
+requirement against this ITSCP by way of the crosswalk in `docs/07-itil4-alignment.md` §1a,
+and a finding holds or fails at that crosswalk: a runbook is the ITSCP's disaster recovery
+plan, the tier workshop is its BIA, "declare disaster" is its activation. Write "the ITSCP"
+or "the plan" for the document under audit and "ISCP" only inside a quotation or when naming
+NIST's or FedRAMP's own artefact. An auditor who conflates the two will cite the wrong
+instrument for the finding.
 
 **The rule.** A requirement PASSES only when the report quotes the sentence from a repository
 file that satisfies it, with file path and section heading. "The runbooks cover this" is not
@@ -163,7 +175,7 @@ evidenced, PARTIAL if some are, and the missing elements are named.
 | N34-4.4c | §4.4 · 41–42 | Deactivation: "Notifications. Upon return to normal operations, users should be notified ... Cleanup. ... Offsite Data Storage. ... If offsite data storage is used, procedures should be documented for returning retrieved backup or installation media ... Data Backup. As soon as reasonable following reconstitution, the system should be fully backed up ... Event Documentation. All recovery and reconstitution events should be well documented ... An after-action report with lessons learned should be documented and included for updating the ISCP." "Once all activities and steps have been completed and documentation has been updated, the ISCP can be formally deactivated. An announcement with the declaration should be sent to all business and technical contacts." Six sub-verdicts. |
 | N34-4.5 | §4.5 Plan Appendices · 42 | "Contact information for contingency planning team personnel; Vendor contact information, including offsite storage and alternate site POCs; BIA; Detailed recovery procedures and checklists; Detailed validation testing procedures and checklists; Equipment and system requirements lists ...; Alternate mission/business processing procedures ...; ISCP testing and maintenance procedures; System interconnections ...; and Vendor SLAs, reciprocal agreements with other organizations, and other vital records." Ten sub-verdicts. |
 
-### A.3 The ISCP template outline (Appendix A)
+### A.3 NIST's ISCP template outline (Appendix A)
 
 Appendix A carries three templates: A.1 low-impact, A.2 moderate-impact, A.3 high-impact.
 They share the outline through 4.3 and differ in §5: A.1 has no Concurrent Processing and
@@ -338,7 +350,7 @@ CP-8(5), CP-9(6), CP-9(7), CP-10(6), CP-11, CP-12 and CP-13 are not in the High 
 their Checklist C rows are NOT APPLICABLE with "not selected in the FedRAMP Rev. 5 High
 baseline (workbook sheet 'High Baseline')" as the reason. They stay assessed in Checklist B.
 
-**C.2 The FedRAMP ISCP template.** CP-2's FedRAMP requirement makes the template's outline a
+**C.2 FedRAMP's ISCP template.** CP-2's FedRAMP requirement makes the template's outline a
 requirement in its own right for a FedRAMP system. The template (revision 5.1, 06/17/2026,
 carrying the same legacy notice) is organised: 1 Introduction and Purpose (1.1 Applicable
 Laws and Regulations, 1.2 FedRAMP Requirements and Guidance, 1.3 system name and identifier,
