@@ -2,7 +2,7 @@
 
 The statement that turns this document set from a *design* into a *plan*: a named authority
 affirms that it is complete, that it has been tested sufficiently, and that they own its
-continued maintenance and testing. NIST SP 800-34 Rev. 1 puts this element first in the ISCP
+continued maintenance and testing. NIST SP 800-34 Rev. 1 puts this element first in its ISCP
 template — above "1. Introduction" — at every FIPS 199 impact level [1][2].
 
 > ### ⚠️ Placeholder signatories only
@@ -57,7 +57,7 @@ at what level is not worth the signature.
 ## 3. Approval statement (template)
 
 > As the designated authority for **{system name — e.g. Oracle E-Business Suite on Exadata,
-> `us-ashburn-1` → `us-phoenix-1`}**, I certify that this IT service continuity plan is
+> `us-ashburn-1` → `us-phoenix-1`}**, I certify that this IT service continuity plan (ITSCP) is
 > complete, and that the information it contains — architecture
 > ([`docs/01-architecture.md`](01-architecture.md)), tier assignments
 > ([`docs/02-mtd-tiers.md`](02-mtd-tiers.md)), replication design
