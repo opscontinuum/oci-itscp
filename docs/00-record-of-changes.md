@@ -1,6 +1,6 @@
 # 00 — Record of Changes
 
-This page is the plan's **record of changes**: which part of the plan changed, what changed,
+This page is the ITSCP's **record of changes**: which part of the plan changed, what changed,
 when, and who signed it off. NIST SP 800-34 Rev. 1 §3.6 requires one and requires it to be
 **inside the plan** [1]. Git history is not a substitute: the plan is read during an outage as a
 standalone document — often printed, when the repository may be exactly what is unreachable —
@@ -21,7 +21,7 @@ form NIST's own plan templates carry as their closing appendix, "Document Change
 | **Page #** | The plan has no page numbers, so this holds the file path(s) and, where useful, the section (`docs/01-architecture.md` §5.1). A printed copy carries the same headings, so the reference survives printing. |
 | **Change Comment** | What changed and why, in one or two lines. The git short SHA is appended in parentheses so the full diff can be found when the repository *is* reachable. |
 | **Date of Change** | Date the change was committed, ISO 8601 (`YYYY-MM-DD`). |
-| **Signature** | Who approved the change. NIST assigns this to the ISCP Coordinator [1]. This example repository has no approval authority, so the column records the git author of the commit; a real plan replaces that with the coordinator's name or initials at sign-off. |
+| **Signature** | Who approved the change. NIST assigns this to the plan owner, in its vocabulary the ISCP Coordinator [1]. This example repository has no approval authority, so the column records the git author of the commit; a real ITSCP replaces that with the plan owner's name or initials at sign-off. |
 
 **Rule:** every commit that changes plan content adds a row here in the *same* commit. A change
 without a row is a change the printed plan does not know about. Changes to tooling only
