@@ -68,7 +68,7 @@ entries say so.
 | Preventive controls: SYNC standby, replication, immutable backups (`docs/01` §3–§4) | Risk reduction | Step 3 "Identify preventive controls" | CP-9 (system backup), CP-6 (alternate storage site) | PROTECT — PR.DS-11 "Backups of data are created, protected, maintained, and tested" | DoD Cloud Computing SRG impact levels govern where DoD data may reside *(portal not readable; secondary sources only)* [15] |
 | Recovery strategy: Phoenix standby, postures, Full Stack DR (`docs/01`, RB-05) | Recovery option | Step 4 "Create contingency strategies"; cold / warm / hot site vocabulary | CP-7 (alternate processing site); CP-7(1) site "sufficiently separated from the primary processing site to reduce susceptibility to the same threats"; CP-8 "Establish alternate telecommunications services… for essential mission and business functions… when the primary telecommunications capabilities are unavailable" (assumption A6, DRG/remote-peering dependency, `docs/01` §1) | RECOVER | DoDI 8510.01: DoD systems "must be categorized in accordance with … CNSSI 1253 …, implement a corresponding set of security controls from NIST SP 800-53" *(2014 edition incl. Change 3 read from a Navy mirror; the 2022 reissue is not fetchable)* [16] |
 | Runbooks RB-01 to RB-05 | Disaster recovery plans | Step 5 "Develop an information system contingency plan" (ISCP) | CP-2 a.3–a.7, b–f; CP-10 (system recovery and reconstitution); CP-10(2) "Implement transaction recovery for systems that are transaction-based" — what Data Guard redo apply provides for an ERP database | RC.RP-01 "The recovery portion of the incident response plan is executed once initiated from the incident response process" | DoDI 3020.26 *DoD Continuity Policy* *(cited by title and date only; not readable)* [17] |
-| Drills and evidence (RB-04, `evidence/`) | Exercising | Step 6 "Ensure plan testing, training, and exercises" | CP-4 (contingency plan testing); CP-3 "Provide contingency training to system users consistent with assigned roles and responsibilities" (RB-04 §4's "primary DBA unavailable" scenario is a training control) | GOVERN / IDENTIFY — ID.IM-02 "Improvements are identified from security tests and exercises, including those done in coordination with suppliers and relevant third parties" | RMF continuous monitoring (NIST SP 800-37 Rev. 2) [13] |
+| Drills and evidence (RB-04, `evidence/`); contingency training (`checklists/contingency-training.md`) | Exercising | Step 6 "Ensure plan testing, training, and exercises"; §3.5.1–§3.5.3 treat testing, training and exercises as distinct activities | CP-4 (contingency plan testing) — RB-04. CP-3 "Provide contingency training to system users consistent with assigned roles and responsibilities" — `checklists/contingency-training.md`, not RB-04: Rev. 5 lets exercise participation satisfy training only "at the discretion of the organization", and this plan exercises that discretion solely for the annual refresher of a person who performed their own role in a Level 2 or 3 drill (`checklists/contingency-training.md` §5). RB-04 §4's "primary DBA unavailable" inject tests the plan without the expert, not the expert without the plan, produces no per-person record, and runs only from the third drill as one of five rotating injects, so it evidences neither CP-3 a.1 (training within a set period of taking a role) nor SP 800-34 §3.5.2's "without aid of the actual ISCP document" outcome | GOVERN / IDENTIFY — ID.IM-02 "Improvements are identified from security tests and exercises, including those done in coordination with suppliers and relevant third parties" | RMF continuous monitoring (NIST SP 800-37 Rev. 2) [13] |
 | Maintenance and drift detection (`docs/04` §5) | Continual improvement | Step 7 "Ensure plan maintenance" | CP-2 d–f | GOVERN — ID.IM-04 "Incident response plans and other cybersecurity plans that affect operations are established, communicated, maintained, and improved" | — |
 | Cyber-event recovery (ransomware) | — | — | CP-10; IR family | RECOVER, RESPOND | NIST SP 800-184 *Guide for Cybersecurity Event Recovery* [18] |
 
@@ -185,7 +185,9 @@ unverified. Numbers restart per document. The consolidated index is `docs/refere
    <https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-34r1.pdf> —
    Supports: MTD, RTO and RPO definitions (§3.2.1, p. 17; Appendix G, p. G-2); "RPO is not
    considered as part of MTD"; reprocessing time "must be added to the RTO to stay within the
-   time limit established by the MTD" (§1). The document does not define Work Recovery Time.
+   time limit established by the MTD" (§1); §3.5.1–§3.5.3 as distinct activities and §3.5.2's
+   annual cadence, "shortly thereafter" for new appointees and "without aid of the actual ISCP
+   document" outcome (p. 28) (§1a). The document does not define Work Recovery Time.
 3. *Maximum Tolerable Downtime.* NIST Computer Security Resource Center glossary, accessed
    2026-09-01. <https://csrc.nist.gov/glossary/term/maximum_tolerable_downtime> — Supports:
    the glossary form of the MTD definition attributed to SP 800-34 Rev. 1 (§1).
@@ -220,7 +222,11 @@ unverified. Numbers restart per document. The consolidated index is `docs/refere
     Rev. 5 (Update 1).* NIST, September 2020 with updates through 2020-12-10, accessed
     2026-09-01. <https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-53r5.pdf>
     — Supports: CP-2, CP-2(2), CP-2(3), CP-3, CP-4, CP-6, CP-7, CP-7(1), CP-8, CP-9, CP-10,
-    CP-10(2) wording (§1a).
+    CP-10(2) wording (§1a); CP-3 a.1 "Within [Assignment: organization-defined time period] of
+    assuming a contingency role or responsibility" and the CP-3 Discussion sentence "At the
+    discretion of the organization, participation in a contingency plan test or exercise,
+    including lessons learned sessions subsequent to the test or exercise, may satisfy
+    contingency plan training requirements" (§1a).
 11. *The NIST Cybersecurity Framework (CSF) 2.0, NIST CSWP 29.* NIST, 2024-02-26, accessed
     2026-09-01. <https://nvlpubs.nist.gov/nistpubs/CSWP/NIST.CSWP.29.pdf> — Supports: the six
     Functions, RC.RP / RC.RP-01, GV.OC-04, GV.OC-05, ID.IM-02, ID.IM-04, PR.DS-11 (§1a).
