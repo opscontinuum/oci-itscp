@@ -48,6 +48,7 @@ judgement. The consolidated index is `docs/references.md`; the per-citation audi
 ### If you are evaluating an approach
 Read it straight through in this order. It is written to be read, not just referenced:
 
+0. [`docs/00-record-of-changes.md`](docs/00-record-of-changes.md) — what has changed in the plan, when, and who signed it off
 1. [`docs/01-architecture.md`](docs/01-architecture.md) — the design and *why* each choice was made
 2. [`docs/02-mtd-tiers.md`](docs/02-mtd-tiers.md) — how downtime tiers are derived and costed
 3. [`docs/03-replication-matrix.md`](docs/03-replication-matrix.md) — every mechanism, and which ones are one-way doors
