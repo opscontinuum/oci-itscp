@@ -13,7 +13,7 @@ and ISO texts, or pages that return HTTP 403 to automated fetch). The per-citati
 `docs/citation-audit.md` (written by the adversarial citation review). Statements for which no source could be found are listed under
 "Unverified statements" at the end of each document rather than left bare.
 
-Sources: 123. Citing documents: 23.
+Sources: 123. Citing documents: 30.
 
 
 ## NIST
@@ -26,7 +26,7 @@ Sources: 123. Citing documents: 23.
 | 4 | [NIST CSRC glossary — Recovery Point Objective](https://csrc.nist.gov/glossary/term/Recovery_Point_Objective) | NIST CSRC glossary | `docs/07-itil4-alignment.md` [5] | Fetched and read 2026-09-01 |
 | 5 | [NIST CSRC glossary — Recovery Time Objective](https://csrc.nist.gov/glossary/term/recovery_time_objective) | NIST CSRC glossary | `docs/07-itil4-alignment.md` [4] | Fetched and read 2026-09-01 |
 | 6 | [NIST SP 800-184](https://csrc.nist.gov/pubs/sp/800/184/final) | NIST, December 2016 | `docs/07-itil4-alignment.md` [18] | Fetched and read 2026-09-01 |
-| 7 | [NIST SP 800-34 Rev. 1 — Contingency Planning Guide for Federal Information Systems](https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-34r1.pdf) | National Institute of Standards and Technology, May 2010 (errata 2010-11-11) | `README.md` [17]<br>`checklists/drill-timing-sheet.md` [1]<br>`checklists/tier-assignment-workshop.md` [1]<br>`docs/00-record-of-changes.md` [1]<br>`docs/02-mtd-tiers.md` [1]<br>`docs/07-itil4-alignment.md` [2] | Fetched and read 2026-09-01 |
+| 7 | [NIST SP 800-34 Rev. 1 — Contingency Planning Guide for Federal Information Systems](https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-34r1.pdf) | National Institute of Standards and Technology, May 2010 (errata 2010-11-11) | `README.md` [17]<br>`checklists/contact-roster.md` [1]<br>`checklists/contingency-training.md` [1]<br>`checklists/drill-timing-sheet.md` [1]<br>`checklists/outage-assessment.md` [1]<br>`checklists/roles-and-responsibilities.md` [1]<br>`checklists/tier-assignment-workshop.md` [1]<br>`docs/00-plan-approval.md` [1]<br>`docs/00-record-of-changes.md` [1]<br>`docs/02-mtd-tiers.md` [1]<br>`docs/07-itil4-alignment.md` [2]<br>`docs/08-phase-activation-notification.md` [1]<br>`docs/09-phase-recovery.md` [1]<br>`docs/10-phase-reconstitution.md` [1] | Fetched and read 2026-09-01; re-read 2026-09-02 for the three-phase, roles and outage-assessment citations |
 | 8 | [NIST SP 800-37 Rev. 2](https://csrc.nist.gov/pubs/sp/800/37/r2/final) | NIST, December 2018 | `docs/07-itil4-alignment.md` [13] | Fetched and read 2026-09-01 |
 | 9 | [NIST SP 800-53 Rev. 5](https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-53r5.pdf) | NIST, September 2020 with updates through 2020-12-10 | `docs/07-itil4-alignment.md` [10] | Fetched and read 2026-09-01 |
 
