@@ -54,6 +54,7 @@ Read it straight through in this order. It is written to be read, not just refer
 4. [`runbooks/`](runbooks/) — what actually happens during a switchover, failover, failback, and drill
 5. [`docs/06-test-environments.md`](docs/06-test-environments.md) — what each test tier proves, and what none of them can
 6. [`docs/07-itil4-alignment.md`](docs/07-itil4-alignment.md) — how the vocabulary maps to ITIL 4, ISO 22301, NIST and DoD instruments
+7. [`docs/00-plan-approval.md`](docs/00-plan-approval.md) — the approval statement that makes it a plan rather than a design; unsigned here by design
 
 ### If you are building a real plan from this
 
