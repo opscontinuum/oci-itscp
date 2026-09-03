@@ -30,16 +30,11 @@ Pre-agreed, so that no discussion is needed in the moment:
 
 ## Contact roster
 
-| Role | Primary | Deputy | Reachable via | Verified |
-|---|---|---|---|---|
-| DR Commander | | | | |
-| DBA on-call | | | | |
-| Windows / infra on-call | | | | |
-| Network on-call | | | | |
-| EBS functional lead | | | | |
-| Finance representative | | | | |
-| Business owner | | | | |
-| Oracle Support (CSI + severity-1 path) | | | | |
+The roster and call tree live in [`contact-roster.md`](contact-roster.md), which carries every
+role named above, together with the call tree (§1), the notification order and alternate
+contact methods (§2), and what to do when someone cannot be reached (§3). It is the single
+copy on purpose: a second roster kept here would drift from it, and during an outage there
+would be no way to tell which one was current.
 
 Signed: Business owner __________  CIO __________  Risk __________  Date __________
 
