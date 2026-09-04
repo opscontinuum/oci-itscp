@@ -8,11 +8,39 @@
 #
 set -uo pipefail
 
+# Read-only, and structurally so: every OCI call goes through wg_oci(), which
+# refuses any mutating operation this script has no business issuing.
+# shellcheck source=../lib/write-guard.sh
+source "$(cd "$(dirname "$0")/../lib" && pwd)/write-guard.sh"
+
+usage() {
+  cat <<'USAGE'
+Usage: check-replication-health.sh [--help]
+
+Single-pass health check across every replication mechanism in
+docs/03-replication-matrix.md. Read-only, and structurally so: every OCI call
+goes through the write guard in scripts/lib/write-guard.sh, which refuses any
+mutating operation.
+
+Takes no arguments. Regions, resource OCIDs and thresholds come from the
+resource config: $DR_CONFIG, or terraform/dr-resources.env by default.
+
+Exit codes (this script reports findings through its exit code, so 1 and 2 mean
+severity here rather than the repository-wide meanings -- see scripts/README.md):
+  0  all green
+  1  warnings
+  2  critical
+  3  configuration or tooling error, including an unknown argument
+
+Feeds the readiness dashboard in docs/04-monitoring.md §3. Safe to run from cron.
+USAGE
+}
+
 # Takes no arguments: regions and resource OCIDs come from the resource config.
 if [[ $# -gt 0 ]]; then
   case "$1" in
-    -h|--help) echo "Usage: check-replication-health.sh   (no arguments; config from DR_CONFIG or terraform/dr-resources.env)"; exit 0 ;;
-    *) echo "ERROR: unknown argument: $1. This script takes no arguments; set regions in the config." >&2; exit 3 ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "ERROR: unknown argument: $1. This script takes no arguments; set regions in the config." >&2; usage >&2; exit 3 ;;
   esac
 fi
 
@@ -73,7 +101,7 @@ fi
 echo
 echo "[R3] OCI Block Volume - Volume Group Replication"
 for VGR in ${DR_VOLUME_GROUP_REPLICA_OCIDS:-}; do
-  JSON=$(oci bv volume-group-replica get --volume-group-replica-id "$VGR" \
+  JSON=$(wg_oci bv volume-group-replica get --volume-group-replica-id "$VGR" \
            --region "$DR_REGION" 2>/dev/null)
   if [[ -z "$JSON" ]]; then crit "$VGR: not readable"; continue; fi
   STATE=$(echo "$JSON" | jq -r '.data."lifecycle-state"')
@@ -94,7 +122,7 @@ done
 echo
 echo "[R5] OCI File Storage - File System Replication"
 for REP in ${DR_FSS_REPLICATION_OCIDS:-}; do
-  JSON=$(oci fs replication get --replication-id "$REP" --region "$DR_REGION" 2>/dev/null)
+  JSON=$(wg_oci fs replication get --replication-id "$REP" --region "$DR_REGION" 2>/dev/null)
   if [[ -z "$JSON" ]]; then crit "$REP: not readable"; continue; fi
   STATE=$(echo "$JSON" | jq -r '.data."lifecycle-state"')
   DELTA=$(echo "$JSON" | jq -r '.data."delta-status" // "UNKNOWN"')
@@ -111,7 +139,7 @@ echo
 echo "[R7] OCI Object Storage - Replication Policy"
 for SPEC in ${DR_BUCKET_POLICIES:-}; do
   BUCKET="${SPEC%%:*}"; POLICY="${SPEC##*:}"
-  JSON=$(oci os replication get-replication-policy --bucket-name "$BUCKET" \
+  JSON=$(wg_oci os replication get-replication-policy --bucket-name "$BUCKET" \
            --replication-id "$POLICY" --namespace "${DR_OS_NAMESPACE:?}" 2>/dev/null)
   if [[ -z "$JSON" ]]; then crit "$BUCKET: policy not readable"; continue; fi
   STATUS=$(echo "$JSON" | jq -r '.data.status')
@@ -125,7 +153,7 @@ done
 echo
 echo "[R12] Oracle Cloud Agent - Run Command plugin"
 for OCID in ${DR_APP_INSTANCE_OCIDS:-}; do
-  STATE=$(oci instance-agent plugin get --instanceagent-id "$OCID" \
+  STATE=$(wg_oci instance-agent plugin get --instanceagent-id "$OCID" \
             --plugin-name "Run Command" --region "$DR_REGION" \
             --compartment-id "${DR_COMPARTMENT_OCID:?}" 2>/dev/null \
             | jq -r '.data.status // "UNREADABLE"')
@@ -140,7 +168,7 @@ done
 echo
 echo "[R2] Oracle Database Autonomous Recovery Service"
 for PDB in ${DR_PROTECTED_DB_OCIDS:-}; do
-  JSON=$(oci recovery protected-database get --protected-database-id "$PDB" 2>/dev/null)
+  JSON=$(wg_oci recovery protected-database get --protected-database-id "$PDB" 2>/dev/null)
   if [[ -z "$JSON" ]]; then crit "$PDB: not readable"; continue; fi
   HEALTH=$(echo "$JSON" | jq -r '.data.health // "UNKNOWN"')
   [[ "$HEALTH" == "PROTECTED" ]] && ok "$PDB: $HEALTH" || crit "$PDB: health $HEALTH"

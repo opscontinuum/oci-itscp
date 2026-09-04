@@ -17,6 +17,11 @@
 #
 set -euo pipefail
 
+# Every OCI call goes through wg_oci(); the guard owns the allowlist and
+# fails closed on anything this plan does not ask for.
+# shellcheck source=../lib/write-guard.sh
+source "$(cd "$(dirname "$0")/../lib" && pwd)/write-guard.sh"
+
 CONFIG="${DR_CONFIG:-$(dirname "$0")/../../terraform/dr-resources.env}"
 POSTURE=""
 REASON=""
@@ -64,6 +69,10 @@ source "$CONFIG"
 : "${DR_OCPU_PRODUCTION:?set DR_OCPU_PRODUCTION}"
 : "${DR_APP_INSTANCE_OCIDS:?set DR_APP_INSTANCE_OCIDS (space-separated)}"
 
+WG_DRY_RUN=$DRY_RUN
+WG_REASON="$REASON"
+
+# run() remains for non-OCI commands. OCI calls go through wg_oci().
 run() {
   if [[ $DRY_RUN -eq 1 ]]; then
     echo "  [dry-run] $*"
@@ -118,7 +127,7 @@ scale_exadata() {
   assert_ocpu_sane "$cores"
   echo "-> Scaling ExaDB-D VM Cluster to ${cores} OCPU (online)"
   # ExaDB-D in OCI is `cloud-vm-cluster`; `vm-cluster` is the Exadata Cloud@Customer group.
-  run oci db cloud-vm-cluster update \
+  wg_oci db cloud-vm-cluster update \
         --cloud-vm-cluster-id "$DR_VMCLUSTER_OCID" \
         --cpu-core-count "$cores" \
         --region "$DR_REGION" \
@@ -133,7 +142,7 @@ instances_action() {
       echo "-> keep RUNNING (always-on) $ocid"; continue
     fi
     echo "-> ${action} ${ocid}"
-    run oci compute instance action \
+    wg_oci compute instance action \
           --instance-id "$ocid" \
           --action "$action" \
           --region "$DR_REGION" \
@@ -146,7 +155,7 @@ verify_run_command_plugin() {
   for ocid in $DR_APP_INSTANCE_OCIDS; do
     if [[ $DRY_RUN -eq 1 ]]; then echo "  [dry-run] check plugin on $ocid"; continue; fi
     local state
-    state=$(oci instance-agent plugin get --instanceagent-id "$ocid" \
+    state=$(wg_oci instance-agent plugin get --instanceagent-id "$ocid" \
               --plugin-name "Run Command" --region "$DR_REGION" \
               --compartment-id "$DR_COMPARTMENT_OCID" 2>/dev/null \
               | jq -r '.data.status // "UNKNOWN"')
@@ -185,7 +194,7 @@ case "$POSTURE" in
     : "${DR_DRILL_INSTANCE_OCIDS:?set DR_DRILL_INSTANCE_OCIDS for drill posture}"
     scale_exadata "$DR_OCPU_PRODUCTION"
     for ocid in $DR_DRILL_INSTANCE_OCIDS; do
-      run oci compute instance action --instance-id "$ocid" --action START \
+      wg_oci compute instance action --instance-id "$ocid" --action START \
             --region "$DR_REGION" --wait-for-state RUNNING
     done
     cat <<'NEXT'

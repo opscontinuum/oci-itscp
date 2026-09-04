@@ -23,6 +23,11 @@
 #
 set -euo pipefail
 
+# Every OCI call goes through wg_oci(); the guard owns the allowlist and
+# fails closed on anything this plan does not ask for.
+# shellcheck source=../lib/write-guard.sh
+source "$(cd "$(dirname "$0")/../lib" && pwd)/write-guard.sh"
+
 CONFIG="${DR_CONFIG:-$(dirname "$0")/../../terraform/dr-resources.env}"
 EVIDENCE="${DR_EVIDENCE_DIR:-$(dirname "$0")/../../evidence}/traffic-steering-log.md"
 TARGET=""
@@ -71,6 +76,10 @@ source "$CONFIG"
 : "${DR_STEERING_ANSWER_IAD:?set DR_STEERING_ANSWER_IAD (answer name for the Ashburn LB)}"
 : "${DR_STEERING_ANSWER_PHX:?set DR_STEERING_ANSWER_PHX (answer name for the Phoenix LB)}"
 
+WG_DRY_RUN=$DRY_RUN
+WG_REASON="$REASON"
+
+# run() remains for non-OCI commands. OCI calls go through wg_oci().
 run() {
   if [[ $DRY_RUN -eq 1 ]]; then echo "  [dry-run] $*"; else echo "  + $*"; "$@"; fi
 }
@@ -81,9 +90,9 @@ assert_target_healthy() {
   # assert_target_healthy <lb-ocid> <backend-set> <region>
   local lb="$1" bs="$2" region="$3"
   [[ -z "$lb" || -z "$bs" ]] && { echo "  (no LB configured for health gate; skipping)"; return; }
-  if [[ $DRY_RUN -eq 1 ]]; then echo "  [dry-run] oci lb backend-set-health get --load-balancer-id $lb --backend-set-name $bs --region $region"; return; fi
+  if [[ $DRY_RUN -eq 1 ]]; then wg_oci lb backend-set-health get --load-balancer-id "$lb" --backend-set-name "$bs" --region "$region" >/dev/null; return; fi
   local j status
-  j=$(oci lb backend-set-health get --load-balancer-id "$lb" --backend-set-name "$bs" --region "$region" 2>/dev/null || echo '{}')
+  j=$(wg_oci lb backend-set-health get --load-balancer-id "$lb" --backend-set-name "$bs" --region "$region" 2>/dev/null || echo '{}')
   status=$(jq -r '.data.status // "UNKNOWN"' <<<"$j")
   echo "  target LB backend set health: $status"
   if [[ "$status" == "CRITICAL" || "$status" == "UNKNOWN" ]]; then
@@ -126,10 +135,10 @@ esac
 
 echo "-> Reading steering policy"
 if [[ $DRY_RUN -eq 1 ]]; then
-  echo "  [dry-run] oci dns steering-policy get --steering-policy-id $DR_STEERING_POLICY_OCID"
+  wg_oci dns steering-policy get --steering-policy-id "$DR_STEERING_POLICY_OCID" >/dev/null
   ANSWERS='[]'
 else
-  POLICY=$(oci dns steering-policy get --steering-policy-id "$DR_STEERING_POLICY_OCID")
+  POLICY=$(wg_oci dns steering-policy get --steering-policy-id "$DR_STEERING_POLICY_OCID")
   TEMPLATE=$(jq -r '.data.template' <<<"$POLICY")
   [[ "$TEMPLATE" == "FAILOVER" ]] || { echo "ERROR: steering policy template is '$TEMPLATE', expected FAILOVER (docs/01-architecture.md §5.2)." >&2; exit 1; }
   ANSWERS=$(jq -c '.data.answers' <<<"$POLICY")
@@ -145,10 +154,16 @@ case "$TARGET" in
   ashburn) DISABLE="$DR_STEERING_ANSWER_PHX" ;;
   auto)    DISABLE="" ;;
 esac
-NEW_ANSWERS=$(jq -c --arg d "$DISABLE" 'map(."is-disabled" = (.name == $d))' <<<"$ANSWERS")
+# In a dry run the policy was never read, so there are no answers to rewrite and
+# no reason to require jq on the operator's workstation just to print a command.
+if [[ $DRY_RUN -eq 1 ]]; then
+  NEW_ANSWERS='[]'
+else
+  NEW_ANSWERS=$(jq -c --arg d "$DISABLE" 'map(."is-disabled" = (.name == $d))' <<<"$ANSWERS")
+fi
 
 echo "-> Updating answers (disabled: ${DISABLE:-none})"
-run oci dns steering-policy update --steering-policy-id "$DR_STEERING_POLICY_OCID" \
+wg_oci dns steering-policy update --steering-policy-id "$DR_STEERING_POLICY_OCID" \
       --answers "$NEW_ANSWERS" --force --wait-for-state ACTIVE
 
 record_evidence

@@ -27,6 +27,12 @@
 #
 set -euo pipefail
 
+# Every OCI call goes through wg_oci(). The guard fails closed, so the verbs
+# this script may issue are fixed by an allowlist reviewed alongside RB-05 §5
+# rather than by whatever a future edit happens to type.
+# shellcheck source=../lib/write-guard.sh
+source "$(cd "$(dirname "$0")/../lib" && pwd)/write-guard.sh"
+
 CONFIG="${DR_CONFIG:-$(dirname "$0")/../../terraform/dr-resources.env}"
 EVIDENCE_DIR="${DR_EVIDENCE_DIR:-$(dirname "$0")/../../evidence}"
 LOG="${EVIDENCE_DIR}/decommission-log.md"
@@ -111,7 +117,7 @@ ERR
 
 assert_backups_retained() {
   # Self-check: this file must never acquire a verb that deletes ARS backups.
-  if grep -qE '^[^#]*oci recovery (protected-database|recovery-service-subnet|protection-policy) delete' "$0"; then
+  if grep -qE '^[^#]*(wg_)?oci recovery (protected-database|recovery-service-subnet|protection-policy) delete' "$0"; then
     echo "REFUSED: decommission-dr.sh must not delete Autonomous Recovery Service resources (RB-05 §5 step 6)." >&2
     exit 3
   fi
@@ -128,6 +134,10 @@ source "$CONFIG"
 STAMP="$(date -u +%Y%m%d-%H%M%SZ)"
 ARCHIVE="${ARCHIVE:-$(cd "$EVIDENCE_DIR/.." && pwd)/evidence-archive-${STAMP}.tar.gz}"
 
+WG_DRY_RUN=$DRY_RUN
+wg_authorise "$CONFIRM" "$TICKET" "" "$APPROVER"
+
+# run() remains for non-OCI commands (tar, dgmgrl). OCI calls go through wg_oci().
 run() {
   if [[ $DRY_RUN -eq 1 ]]; then echo "  [dry-run] $*"; else echo "  + $*"; "$@"; fi
 }
@@ -162,12 +172,14 @@ if stage_gate 0; then
       exit 3
     fi
     echo "  archive verified: $ARCHIVE ($(du -h "$ARCHIVE" | cut -f1))"
-    if [[ -n "${DR_EVIDENCE_ARCHIVE_BUCKET:-}" ]]; then
-      run oci os object put --bucket-name "$DR_EVIDENCE_ARCHIVE_BUCKET" --namespace "${DR_OS_NAMESPACE:?}" \
-            --file "$ARCHIVE" --name "$(basename "$ARCHIVE")" --region "$PRIMARY_REGION" --force
-    else
-      echo "  NOTE: DR_EVIDENCE_ARCHIVE_BUCKET not set; archive is local only. Copy it to long-term retention before continuing."
-    fi
+  fi
+  # Outside the branch above so that --dry-run previews the upload too. A dry run
+  # of the decommission that omits one of its operations is not a dry run.
+  if [[ -n "${DR_EVIDENCE_ARCHIVE_BUCKET:-}" ]]; then
+    wg_oci os object put --bucket-name "$DR_EVIDENCE_ARCHIVE_BUCKET" --namespace "${DR_OS_NAMESPACE:?}" \
+          --file "$ARCHIVE" --name "$(basename "$ARCHIVE")" --region "$PRIMARY_REGION" --force
+  else
+    echo "  NOTE: DR_EVIDENCE_ARCHIVE_BUCKET not set; archive is local only. Copy it to long-term retention before continuing."
   fi
   log 0 "archive evidence" "$ARCHIVE" "verified"
 fi
@@ -178,15 +190,15 @@ if stage_gate 1; then
   for DRPG in ${DR_FSDR_DRPG_OCIDS:-}; do
     REG="$DR_REGION"; [[ "$DRPG" == *".iad."* ]] && REG="$PRIMARY_REGION"
     if [[ $DRY_RUN -eq 0 ]]; then
-      PLANS=$(oci disaster-recovery dr-plan list --dr-protection-group-id "$DRPG" --region "$REG" --all 2>/dev/null | jq -r '.data.items[]?.id' || true)
+      PLANS=$(wg_oci disaster-recovery dr-plan list --dr-protection-group-id "$DRPG" --region "$REG" --all 2>/dev/null | jq -r '.data.items[]?.id' || true)
     else PLANS="<plans of $DRPG>"; fi
     for P in $PLANS; do
-      run oci disaster-recovery dr-plan delete --dr-plan-id "$P" --region "$REG" --force --wait-for-state SUCCEEDED
+      wg_oci disaster-recovery dr-plan delete --dr-plan-id "$P" --region "$REG" --force --wait-for-state SUCCEEDED
       log 1 "delete DR plan" "$P" "deleted"
     done
     # A DRPG must be disassociated from its peer before deletion.
-    run oci disaster-recovery dr-protection-group disassociate --dr-protection-group-id "$DRPG" --region "$REG" --type DEFAULT --wait-for-state SUCCEEDED
-    run oci disaster-recovery dr-protection-group delete --dr-protection-group-id "$DRPG" --region "$REG" --force --wait-for-state SUCCEEDED
+    wg_oci disaster-recovery dr-protection-group disassociate --dr-protection-group-id "$DRPG" --region "$REG" --type DEFAULT --wait-for-state SUCCEEDED
+    wg_oci disaster-recovery dr-protection-group delete --dr-protection-group-id "$DRPG" --region "$REG" --force --wait-for-state SUCCEEDED
     log 1 "delete DRPG" "$DRPG" "deleted"
   done
   [[ -z "${DR_FSDR_DRPG_OCIDS:-}" ]] && echo "  (DR_FSDR_DRPG_OCIDS not set; skipped)"
@@ -197,14 +209,14 @@ if stage_gate 2; then
   banner "Stage 2 — Traffic Management steering policy and health checks (step 2)"
   if [[ -n "${DR_STEERING_POLICY_OCID:-}" ]]; then
     if [[ $DRY_RUN -eq 0 ]]; then
-      ATT=$(oci dns steering-policy-attachment list --compartment-id "${PRIMARY_COMPARTMENT_OCID:-${DR_COMPARTMENT_OCID:?}}" --steering-policy-id "$DR_STEERING_POLICY_OCID" --all 2>/dev/null | jq -r '.data[]?.id' || true)
+      ATT=$(wg_oci dns steering-policy-attachment list --compartment-id "${PRIMARY_COMPARTMENT_OCID:-${DR_COMPARTMENT_OCID:?}}" --steering-policy-id "$DR_STEERING_POLICY_OCID" --all 2>/dev/null | jq -r '.data[]?.id' || true)
     else ATT="<attachments of $DR_STEERING_POLICY_OCID>"; fi
-    for A in $ATT; do run oci dns steering-policy-attachment delete --steering-policy-attachment-id "$A" --force; done
-    run oci dns steering-policy delete --steering-policy-id "$DR_STEERING_POLICY_OCID" --force
+    for A in $ATT; do wg_oci dns steering-policy-attachment delete --steering-policy-attachment-id "$A" --force; done
+    wg_oci dns steering-policy delete --steering-policy-id "$DR_STEERING_POLICY_OCID" --force
     log 2 "delete steering policy" "$DR_STEERING_POLICY_OCID" "deleted"
   fi
   for HC in ${DR_HEALTH_CHECK_OCIDS:-}; do
-    run oci health-checks http-monitor delete --monitor-id "$HC" --force
+    wg_oci health-checks http-monitor delete --monitor-id "$HC" --force
     log 2 "delete health check" "$HC" "deleted"
   done
   echo "  NOTE: the Ashburn DNS record now has no failover answer. Confirm the zone still resolves to the Ashburn LB."
@@ -214,14 +226,14 @@ fi
 if stage_gate 3; then
   banner "Stage 3 — terminate Phoenix Windows instances and volumes (step 3)"
   for OCID in ${DR_APP_INSTANCE_OCIDS:-} ${DR_DRILL_INSTANCE_OCIDS:-}; do
-    run oci compute instance terminate --instance-id "$OCID" --region "$DR_REGION" --preserve-boot-volume false --force --wait-for-state TERMINATED
+    wg_oci compute instance terminate --instance-id "$OCID" --region "$DR_REGION" --preserve-boot-volume false --force --wait-for-state TERMINATED
     log 3 "terminate instance" "$OCID" "terminated (boot volume deleted)"
   done
   for VG in ${DR_ACTIVATED_VOLUME_GROUP_OCIDS:-}; do
-    run oci bv volume-group delete --volume-group-id "$VG" --region "$DR_REGION" --force --wait-for-state TERMINATED
+    wg_oci bv volume-group delete --volume-group-id "$VG" --region "$DR_REGION" --force --wait-for-state TERMINATED
     log 3 "delete volume group" "$VG" "deleted"
   done
-  run oci lb load-balancer delete --load-balancer-id "${DR_LB_OCID:?set DR_LB_OCID}" --region "$DR_REGION" --force --wait-for-state SUCCEEDED
+  wg_oci lb load-balancer delete --load-balancer-id "${DR_LB_OCID:?set DR_LB_OCID}" --region "$DR_REGION" --force --wait-for-state SUCCEEDED
   log 3 "delete load balancer" "$DR_LB_OCID" "deleted"
 fi
 
@@ -231,16 +243,16 @@ if stage_gate 4; then
   echo "  These are the actions set-dr-posture.sh refuses. Here they are intentional and signed off."
   for VG in ${PRIMARY_VOLUME_GROUP_OCIDS:-}; do
     # Disabling replication on the SOURCE volume group removes the Phoenix replica.
-    run oci bv volume-group update --volume-group-id "$VG" --region "$PRIMARY_REGION" --volume-group-replicas '[]' --force
+    wg_oci bv volume-group update --volume-group-id "$VG" --region "$PRIMARY_REGION" --volume-group-replicas '[]' --force
     log 4 "disable volume group replication" "$VG" "replica removed"
   done
   for REP in ${DR_FSS_REPLICATION_OCIDS:-}; do
-    run oci fs replication delete --replication-id "$REP" --region "$DR_REGION" --force --wait-for-state DELETED
+    wg_oci fs replication delete --replication-id "$REP" --region "$DR_REGION" --force --wait-for-state DELETED
     log 4 "delete FSS replication" "$REP" "deleted"
   done
   for SPEC in ${DR_BUCKET_POLICIES:-}; do
     BUCKET="${SPEC%%:*}"; POLICY="${SPEC##*:}"
-    run oci os replication delete-replication-policy --bucket-name "$BUCKET" --replication-id "$POLICY" --namespace "${DR_OS_NAMESPACE:?}" --region "$PRIMARY_REGION" --force
+    wg_oci os replication delete-replication-policy --bucket-name "$BUCKET" --replication-id "$POLICY" --namespace "${DR_OS_NAMESPACE:?}" --region "$PRIMARY_REGION" --force
     log 4 "delete bucket replication policy" "$BUCKET:$POLICY" "deleted"
   done
 fi
@@ -261,7 +273,7 @@ ERR
   if [[ -n "${DR_STANDBY_DATABASE_OCID:-}" ]]; then
     # Terminating the standby database resource removes it from the Data Guard configuration.
     # (There is no 'data-guard-association delete' verb in the OCI CLI.)
-    run oci db database delete --database-id "$DR_STANDBY_DATABASE_OCID" --region "$DR_REGION" --force --wait-for-state TERMINATED
+    wg_oci db database delete --database-id "$DR_STANDBY_DATABASE_OCID" --region "$DR_REGION" --force --wait-for-state TERMINATED
     log 5 "terminate standby database ${DG_STANDBY_REMOTE:-EBSPROD_PHX}" "$DR_STANDBY_DATABASE_OCID" "terminated"
   elif command -v dgmgrl >/dev/null 2>&1 && [[ -n "${DG_CONNECT:-}" ]]; then
     run dgmgrl -silent "$DG_CONNECT" "remove database '${DG_STANDBY_REMOTE:-EBSPROD_PHX}'"
@@ -286,10 +298,10 @@ fi
 # --- Stage 7: Exadata -------------------------------------------------------
 if stage_gate 7; then
   banner "Stage 7 — delete the Phoenix VM cluster and Exadata infrastructure (step 7)"
-  run oci db cloud-vm-cluster delete --cloud-vm-cluster-id "${DR_VMCLUSTER_OCID:?}" --region "$DR_REGION" --force --wait-for-state TERMINATED
+  wg_oci db cloud-vm-cluster delete --cloud-vm-cluster-id "${DR_VMCLUSTER_OCID:?}" --region "$DR_REGION" --force --wait-for-state TERMINATED
   log 7 "delete VM cluster" "$DR_VMCLUSTER_OCID" "deleted"
   if [[ -n "${DR_EXA_INFRA_OCID:-}" ]]; then
-    run oci db cloud-exa-infra delete --cloud-exa-infra-id "$DR_EXA_INFRA_OCID" --region "$DR_REGION" --force --wait-for-state TERMINATED
+    wg_oci db cloud-exa-infra delete --cloud-exa-infra-id "$DR_EXA_INFRA_OCID" --region "$DR_REGION" --force --wait-for-state TERMINATED
     log 7 "delete Exadata infrastructure" "$DR_EXA_INFRA_OCID" "deleted"
   else
     echo "  DR_EXA_INFRA_OCID not set: infrastructure retained (check whether it is shared with another workload)."

@@ -22,6 +22,11 @@
 #
 set -uo pipefail
 
+# Read-only, and structurally so: every OCI call goes through wg_oci(), which
+# refuses any mutating operation this script has no business issuing.
+# shellcheck source=../lib/write-guard.sh
+source "$(cd "$(dirname "$0")/../lib" && pwd)/write-guard.sh"
+
 CONFIG="${DR_CONFIG:-$(dirname "$0")/../../terraform/dr-resources.env}"
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 REPORT=""
@@ -69,12 +74,12 @@ finding() {
 ok()      { echo "  ok $*"; }
 
 ocical() {
-  if [[ $DRY_RUN -eq 1 ]]; then echo "  [dry-run] oci $*" >&2; echo ""; return; fi
-  timeout 90 oci "$@" 2>/dev/null || echo ""
+  if [[ $DRY_RUN -eq 1 ]]; then WG_DRY_RUN=1 wg_oci "$@"; echo ""; return; fi
+  WG_TIMEOUT=90 wg_oci "$@" 2>/dev/null || echo ""
 }
 
 assert_read_only() {
-  if grep -qE '^[^#]*oci [a-z -]+ (create|update|delete|launch|terminate|action)\b' "$0"; then
+  if grep -qE '^[^#]*(wg_)?oci [a-z -]+ (create|update|delete|launch|terminate|action)\b' "$0"; then
     echo "REFUSED: detect-drift.sh must remain read-only." >&2; exit 3
   fi
 }
