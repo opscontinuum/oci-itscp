@@ -17,6 +17,11 @@
 #
 set -uo pipefail
 
+# Read-only, and structurally so: every OCI call goes through wg_oci(), which
+# refuses any mutating operation this script has no business issuing.
+# shellcheck source=../lib/write-guard.sh
+source "$(cd "$(dirname "$0")/../lib" && pwd)/write-guard.sh"
+
 CONFIG="${DR_CONFIG:-$(dirname "$0")/../../terraform/dr-resources.env}"
 EVIDENCE_DIR="${DR_EVIDENCE_DIR:-$(dirname "$0")/../../evidence}"
 OUT=""
@@ -60,7 +65,7 @@ OUT="${OUT:-${EVIDENCE_DIR}/replication-state-${STAMP}.md}"
 # --- guard rails ------------------------------------------------------------
 
 assert_read_only() {
-  if grep -qE '^[^#]*oci [a-z -]+ (create|update|delete|activate|delete-replication-policy|make-replication-policy)\b' "$0"; then
+  if grep -qE '^[^#]*(wg_)?oci [a-z -]+ (create|update|delete|activate|delete-replication-policy|make-replication-policy)\b' "$0"; then
     echo "REFUSED: capture-replication-state.sh must remain read-only. A mutating OCI verb was found in the script body." >&2
     exit 3
   fi
@@ -80,8 +85,8 @@ row() { printf '| %s | %s | %s | %s | %s | %s |\n' "$@" >> "$OUT"; }
 
 ocical() {
   # ocical <args...> -> JSON on stdout, or empty on failure / dry-run
-  if [[ $DRY_RUN -eq 1 ]]; then echo "  [dry-run] oci $*" >&2; echo ""; return; fi
-  timeout 60 oci "$@" 2>/dev/null || echo ""
+  if [[ $DRY_RUN -eq 1 ]]; then WG_DRY_RUN=1 wg_oci "$@"; echo ""; return; fi
+  WG_TIMEOUT=60 wg_oci "$@" 2>/dev/null || echo ""
 }
 
 # --- main -------------------------------------------------------------------

@@ -14,6 +14,12 @@
 #
 set -euo pipefail
 
+# Every OCI call in the three failover scripts goes through wg_oci(). The guard
+# owns the allowlist and the --confirm / --ticket gate; the helpers below own
+# the operator-facing refusal text and the evidence record.
+# shellcheck source=../lib/write-guard.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")/../lib" && pwd)/write-guard.sh"
+
 EVIDENCE_DIR="${DR_EVIDENCE_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../evidence" && pwd)}"
 
 # Resource inventory (DR_OS_NAMESPACE, DR_COMPARTMENT_OCID, regions). Optional here:
@@ -21,6 +27,25 @@ EVIDENCE_DIR="${DR_EVIDENCE_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../evid
 CONFIG="${DR_CONFIG:-$(dirname "${BASH_SOURCE[0]}")/../../terraform/dr-resources.env}"
 # shellcheck source=/dev/null
 [[ -f "$CONFIG" ]] && source "$CONFIG"
+
+# require_ticket <action-description> <ticket-value>
+require_ticket() {
+  local action="$1" ticket="$2"
+  if [[ -z "$ticket" ]]; then
+    cat >&2 <<ERR
+
+REFUSED: '${action}' requires --ticket "<change-ref>".
+
+Every irreversible action in this plan is auditable. evidence/storage-failover-log.md
+records who did what and under which change; a row with no change reference cannot be
+reconciled against the change record afterwards, which is exactly the question an
+auditor asks about the one action nobody wants to own.
+
+Re-run with --ticket "<change-ref>".
+ERR
+    exit 3
+  fi
+}
 
 # require_confirm <action-description> <confirm-flag-value>
 require_confirm() {
@@ -51,6 +76,10 @@ TICKET="${TICKET:-}"
 record() {
   local ts; ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   local f="${EVIDENCE_DIR}/storage-failover-log.md"
+  if [[ "${WG_DRY_RUN:-0}" == "1" ]]; then
+    echo "  [dry-run] evidence -> $f: $1 | $2 | $3 | ${TICKET:+ticket $TICKET; }${4:-}"
+    return
+  fi
   [[ -f "$f" ]] || printf '# Storage Failover Log\n\nOne-way-door actions. Each row implies a future full baseline copy.\n\n| UTC | Resource type | Resource | Action | Operator | Notes |\n|---|---|---|---|---|---|\n' > "$f"
   printf '| %s | %s | %s | %s | %s | %s |\n' \
     "$ts" "$1" "$2" "$3" "${USER:-unknown}" "${TICKET:+ticket $TICKET; }${4:-}" >> "$f"
@@ -59,6 +88,12 @@ record() {
 
 # warn_failback_cost <mechanism>
 warn_failback_cost() {
+  if [[ "${WG_DRY_RUN:-0}" == "1" ]]; then
+    echo
+    echo "  [dry-run] nothing was destroyed. A live run would destroy: $1"
+    echo "  [dry-run] and returning to Ashburn would then need a full reverse baseline of it."
+    return
+  fi
   cat <<NOTE
 
   ---------------------------------------------------------------------------

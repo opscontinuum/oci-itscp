@@ -58,9 +58,9 @@ Read it straight through in this order. It is written to be read, not just refer
 7. [`docs/08-phase-activation-notification.md`](docs/08-phase-activation-notification.md), [`docs/09-phase-recovery.md`](docs/09-phase-recovery.md), [`docs/10-phase-reconstitution.md`](docs/10-phase-reconstitution.md) — the runbooks re-indexed by the three phases NIST SP 800-34 expects an ISCP to describe, one document per phase, each routing to the runbook that does the work
 8. [`checklists/roles-and-responsibilities.md`](checklists/roles-and-responsibilities.md) — who holds each role, who succeeds them, and what each team owns in each phase
 9. [`checklists/outage-assessment.md`](checklists/outage-assessment.md) — how the repair estimate that the failover decision gate consumes is actually produced
-10. [`docs/00-plan-approval.md`](docs/00-plan-approval.md) — the approval statement that makes it a plan rather than a design; unsigned here by design
-11. [`checklists/contingency-training.md`](checklists/contingency-training.md) — the training programme NIST SP 800-34 keeps separate from drills: annual syllabus, new-joiner path, closed-book evidence
-12. [`checklists/contact-roster.md`](checklists/contact-roster.md) — who is notified, in what order, and how they are reached; the contact-list appendix NIST SP 800-34 expects
+10. [`checklists/contact-roster.md`](checklists/contact-roster.md) — who is notified, in what order, and how they are reached; the contact-list appendix NIST SP 800-34 expects
+11. [`docs/00-plan-approval.md`](docs/00-plan-approval.md) — the approval statement that makes it a plan rather than a design; unsigned here by design. It closes the plan because it affirms that everything above it is complete
+12. [`checklists/contingency-training.md`](checklists/contingency-training.md) — the training programme NIST SP 800-34 keeps separate from drills: annual syllabus, new-joiner path, closed-book evidence. It runs against the approved plan, so it follows the signature
 
 ### If you are building a real plan from this
 
@@ -198,6 +198,9 @@ docs/         01 architecture · 02 MTD tiers · 03 replication matrix · 04 mon
 runbooks/     RB-01 switchover · RB-02 failover · RB-03 failback
               RB-04 drill · RB-05 replication lifecycle
 scripts/
+  README.md   The command-line contract: flags, exit codes, the write guard allowlist
+  test-scripts.sh  Offline test suite for the shell tier; reaches no tenancy
+  lib/        write-guard.sh — the allowlist every mutating OCI call goes through
   oci/        Posture control, health checks, guarded storage-failover actions,
               forensic capture, OCPU scaling, traffic steering, drift detection,
               RPO attestation, guarded decommission

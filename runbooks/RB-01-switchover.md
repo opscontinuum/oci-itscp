@@ -98,7 +98,10 @@ oci bv volume-group-replica get --volume-group-replica-id <replica-ocid> --regio
   | jq -r '.data["time-last-synced"]'   # repeat until this is within one replication cycle of "now"
 
 # 4. Bring up Phoenix storage, then compute, then EBS
-#    All three take their OCIDs and region from terraform/dr-resources.env; all refuse without --confirm.
+#    All three take their OCIDs and region from terraform/dr-resources.env; all refuse
+#    without --confirm and a --ticket. Add --dry-run to any of them to print the exact
+#    OCI calls without issuing one -- do that first; it costs nothing and catches a
+#    stale OCID before the switchover window rather than during it.
 #    --lossless on fss-failover.sh runs one final replication cycle before unlocking the target —
 #    use it here because this is a planned switchover with a reachable source; RB-02 never uses it.
 ./scripts/oci/activate-volume-group.sh --vg-replica <replica-ocid> --region us-phoenix-1 --confirm --ticket "<change-ref>"
