@@ -18,6 +18,11 @@
 #
 set -euo pipefail
 
+# Every OCI call goes through wg_oci(); the guard owns the allowlist and
+# fails closed on anything this plan does not ask for.
+# shellcheck source=../lib/write-guard.sh
+source "$(cd "$(dirname "$0")/../lib" && pwd)/write-guard.sh"
+
 CONFIG="${DR_CONFIG:-$(dirname "$0")/../../terraform/dr-resources.env}"
 EVIDENCE="${DR_EVIDENCE_DIR:-$(dirname "$0")/../../evidence}/ocpu-scale-log.md"
 CLUSTER=""
@@ -90,6 +95,10 @@ case "$CLUSTER" in
   *) echo "ERROR: unknown cluster '$CLUSTER'. Expected ${DG_STANDBY_REMOTE:-EBSPROD_PHX} or ${DG_PRIMARY:-EBSPROD_IAD} (from $CONFIG)." >&2; exit 2 ;;
 esac
 
+WG_DRY_RUN=$DRY_RUN
+WG_REASON="$REASON"
+
+# run() remains for non-OCI commands. OCI calls go through wg_oci().
 run() {
   if [[ $DRY_RUN -eq 1 ]]; then echo "  [dry-run] $*"; else echo "  + $*"; "$@"; fi
 }
@@ -154,7 +163,7 @@ echo "=== ExaDB-D OCPU scaling · $CLUSTER · $REGION ==="
 
 CURRENT="?"; NODES="$NODES_CFG"
 if [[ $DRY_RUN -eq 0 ]]; then
-  J=$(oci db cloud-vm-cluster get --cloud-vm-cluster-id "$VMC" --region "$REGION")
+  J=$(wg_oci db cloud-vm-cluster get --cloud-vm-cluster-id "$VMC" --region "$REGION")
   CURRENT=$(jq -r '.data."cpu-core-count" // "?"' <<<"$J")
   [[ -z "$NODES" ]] && NODES=$(jq -r '.data."node-count" // (.data."db-servers" | length) // empty' <<<"$J")
   STATE=$(jq -r '.data."lifecycle-state"' <<<"$J")
@@ -184,9 +193,9 @@ fi
 
 echo "-> Scaling ${CLUSTER} to ${TOTAL} OCPU (online, no downtime for running databases)"
 if [[ $NO_WAIT -eq 1 ]]; then
-  run oci db cloud-vm-cluster update --cloud-vm-cluster-id "$VMC" --cpu-core-count "$TOTAL" --region "$REGION"
+  wg_oci db cloud-vm-cluster update --cloud-vm-cluster-id "$VMC" --cpu-core-count "$TOTAL" --region "$REGION"
 else
-  run oci db cloud-vm-cluster update --cloud-vm-cluster-id "$VMC" --cpu-core-count "$TOTAL" --region "$REGION" \
+  wg_oci db cloud-vm-cluster update --cloud-vm-cluster-id "$VMC" --cpu-core-count "$TOTAL" --region "$REGION" \
         --wait-for-state AVAILABLE --wait-for-state FAILED
 fi
 

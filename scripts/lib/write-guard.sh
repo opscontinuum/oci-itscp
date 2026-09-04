@@ -243,8 +243,11 @@ wg_oci() {
       fi
       ;;
     REVERSIBLE)
-      if [[ -z "$WG_TICKET" && -z "$WG_REASON" ]]; then
-        printf 'WRITE GUARD: note - "%s" is running with no --ticket and no --reason.\n' "$path" >&2
+      # Once per run, not once per call: a warm posture stops every application
+      # node, and a note repeated per instance is a note nobody reads.
+      if [[ -z "$WG_TICKET" && -z "$WG_REASON" && ! -e "$WG_STATE_DIR/noted" ]]; then
+        : > "$WG_STATE_DIR/noted"
+        printf 'WRITE GUARD: note - reversible operations are running with no --ticket and no --reason.\n' >&2
         printf '  The evidence log will record the operator and the timestamp only.\n' >&2
       fi
       ;;
@@ -257,6 +260,11 @@ wg_oci() {
     wg_count made
     return 0
   fi
+
+  # Mutating calls announce themselves, exactly as the scripts did before the
+  # guard existed. Reads stay quiet: the forensic and reporting scripts issue
+  # dozens of them and their output is the report, not the call list.
+  if [[ "$class" != "READ" ]]; then printf '  + oci %s\n' "$*"; fi
 
   wg_count made
   if [[ -n "$WG_TIMEOUT" ]] && command -v timeout >/dev/null 2>&1; then
@@ -360,7 +368,11 @@ wg_self_test() {
   fi
 }
 
-case "${1:-}" in
-  --self-test)       wg_self_test; exit $? ;;
-  --allowlist-table) wg_allowlist_table; exit 0 ;;
-esac
+# Only when executed directly. A sourcing script may legitimately be called with
+# --self-test or --allowlist-table of its own, and the guard must not swallow it.
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  case "${1:-}" in
+    --self-test)       wg_self_test; exit $? ;;
+    --allowlist-table) wg_allowlist_table; exit 0 ;;
+  esac
+fi

@@ -21,6 +21,11 @@
 #
 set -euo pipefail
 
+# Read-only, and structurally so: every OCI call goes through wg_oci(), which
+# refuses any mutating operation this script has no business issuing.
+# shellcheck source=../lib/write-guard.sh
+source "$(cd "$(dirname "$0")/../lib" && pwd)/write-guard.sh"
+
 CONFIG="${DR_CONFIG:-$(dirname "$0")/../../terraform/dr-resources.env}"
 MONTH=""
 OUTDIR=""
@@ -102,11 +107,12 @@ while IFS= read -r ENTRY; do
   echo "-> $LABEL: $MQL"
 
   if [[ $DRY_RUN -eq 1 ]]; then
-    echo "  [dry-run] oci monitoring metric-data summarize-metrics-data --namespace $NS --query-text '$MQL' --start-time $START --end-time $END --compartment-id $COMP --region $REGION"
+    WG_DRY_RUN=1 wg_oci monitoring metric-data summarize-metrics-data --namespace "$NS" --query-text "$MQL" \
+        --start-time "$START" --end-time "$END" --compartment-id "$COMP" --region "$REGION"
     continue
   fi
 
-  J=$(oci monitoring metric-data summarize-metrics-data --namespace "$NS" --query-text "$MQL" \
+  J=$(wg_oci monitoring metric-data summarize-metrics-data --namespace "$NS" --query-text "$MQL" \
         --start-time "$START" --end-time "$END" --compartment-id "$COMP" --region "$REGION" 2>/dev/null || echo '{}')
   # Flatten all datapoints across returned series into "timestamp value" lines, sorted.
   DP=$(jq -r '[.data[]?."aggregated-datapoints"[]?] | sort_by(.timestamp)[] | "\(.timestamp) \(.value)"' <<<"$J")

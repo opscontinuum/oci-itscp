@@ -26,7 +26,8 @@ the minutes are free.
 **What a green run proves.**
 
 - Every guard rail rejects what the design says it rejects, with exit 3: OCPU below Oracle's
-  per-VM minimum or not a multiple of it; any storage one-way door without `--confirm`;
+  per-VM minimum or not a multiple of it; any storage one-way door without `--confirm` or a
+  `--ticket`; any OCI operation absent from the write guard's allowlist (`scripts/lib/write-guard.sh`);
   decommission without `--confirm-unprotected`, an approver and a ticket, or without long-term
   backup evidence; traffic steering at a load balancer whose backend set is unhealthy.
 - `Start-EBSAppTier.ps1 -DrillMode` **aborts** when any of the five scripted isolation controls

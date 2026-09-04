@@ -22,13 +22,15 @@ REGION="${REGION:-${DR_REGION:-}}"
 NAME="${NAME:-ebs-app-vg-activated-$(date -u +%Y%m%d%H%M)}"
 
 require_confirm "activate volume group replica $VGR" "$CONFIRM"
+require_ticket  "activate volume group replica $VGR" "$TICKET"
+wg_authorise "$CONFIRM" "$TICKET"
 
 echo "-> Reading replica state and last sync point"
-oci bv volume-group-replica get --volume-group-replica-id "$VGR" --region "$REGION" \
+wg_oci bv volume-group-replica get --volume-group-replica-id "$VGR" --region "$REGION" \
   | jq -r '.data | "   state: \(.["lifecycle-state"])  last-synced: \(.["time-last-synced"])"'
 
 echo "-> Activating replica into volume group: $NAME"
-oci bv volume-group create \
+wg_oci bv volume-group create \
   --region "$REGION" \
   --compartment-id "${DR_COMPARTMENT_OCID:?set DR_COMPARTMENT_OCID}" \
   --display-name "$NAME" \

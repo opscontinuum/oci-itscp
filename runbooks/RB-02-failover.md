@@ -109,19 +109,19 @@ These are **not** automatic and each is a one-way door (`docs/03-replication-mat
 
 ```bash
 # Block Volume: activating the replica creates a new volume group by cloning it
-./scripts/oci/activate-volume-group.sh --vg-replica <replica-ocid> --region us-phoenix-1 --confirm
+./scripts/oci/activate-volume-group.sh --vg-replica <replica-ocid> --region us-phoenix-1 --confirm --ticket "<change-ref>"
 
 # FSS: the target is read-only while the replication resource exists;
 # deleting it (or the replication target if the source is gone) makes it exportable
-./scripts/oci/fss-failover.sh --replication <replication-ocid> --region us-phoenix-1 --confirm
+./scripts/oci/fss-failover.sh --replication <replication-ocid> --region us-phoenix-1 --confirm --ticket "<change-ref>"
 
 # Object Storage: make the DESTINATION bucket writable (works when Ashburn is gone); the
 # --source-* arguments make it also delete the source policy, best-effort
 ./scripts/oci/objectstore-failover.sh --bucket ebs-interfaces-phx --region us-phoenix-1 \
-    --source-bucket ebs-interfaces --policy <policy-id> --source-region us-ashburn-1 --confirm
+    --source-bucket ebs-interfaces --policy <policy-id> --source-region us-ashburn-1 --confirm --ticket "<change-ref>"
 ```
 
-**All three refuse to run without `--confirm`, default their OCIDs and region from `terraform/dr-resources.env`, and write to `evidence/storage-failover-log.md`.**
+**All three refuse to run without `--confirm` and a `--ticket`, default their OCIDs and region from `terraform/dr-resources.env`, and write to `evidence/storage-failover-log.md`.** Under an unplanned failover the change reference is the incident ticket — raise it at the RB-02 §0 decision gate, before you need it here.
 
 That is deliberate — these actions destroy the replication relationship. Activating the volume group replica creates a new volume group by cloning it, and all replicas activate from the same coordinated synchronization point [6][7]. The FSS target is read-only while the replication resource exists; deleting it (or the replication target if the source is gone) makes it exportable [8][9]. Making the Object Storage destination bucket writable is the documented destination-side action for stopping replication [10]; that it also works when the source region is unreachable is not stated on that page but follows from the mechanism being entirely destination-side *(inference; not confirmed in a fetched page)*.
 

@@ -37,14 +37,16 @@ SRC_REGION="${SRC_REGION:-${PRIMARY_REGION:-}}"
 [[ -n "$DEST_BUCKET" && -n "$DEST_REGION" && -n "$NS" ]] || { echo "ERROR: --bucket, --region and --namespace required" >&2; exit 2; }
 
 require_confirm "make destination bucket $DEST_BUCKET writable (breaks replication)" "$CONFIRM"
+require_ticket  "make destination bucket $DEST_BUCKET writable (breaks replication)" "$TICKET"
+wg_authorise "$CONFIRM" "$TICKET"
 
 echo "-> Making destination bucket writable: $DEST_BUCKET @ $DEST_REGION"
-oci os replication make-bucket-writable --bucket-name "$DEST_BUCKET" --namespace "$NS" --region "$DEST_REGION"
+wg_oci os replication make-bucket-writable --bucket-name "$DEST_BUCKET" --namespace "$NS" --region "$DEST_REGION"
 record "ObjectStorage/DestinationBucket" "$DEST_BUCKET@$DEST_REGION" "MADE WRITABLE - replication from source broken"
 
 if [[ -n "$SRC_BUCKET" && -n "$POLICY" && -n "$SRC_REGION" ]]; then
   echo "-> Deleting source replication policy (best-effort; fails harmlessly if $SRC_REGION is down)"
-  if oci os replication delete-replication-policy --bucket-name "$SRC_BUCKET" --replication-id "$POLICY" \
+  if wg_oci os replication delete-replication-policy --bucket-name "$SRC_BUCKET" --replication-id "$POLICY" \
        --namespace "$NS" --region "$SRC_REGION" --force 2>/dev/null; then
     record "ObjectStorage/ReplicationPolicy" "$SRC_BUCKET:$POLICY" "DELETED on source"
   else

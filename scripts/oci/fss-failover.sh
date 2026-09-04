@@ -25,9 +25,11 @@ REGION="${REGION:-${DR_REGION:-}}"
 [[ -n "$REP" && -n "$REGION" ]] || { echo "ERROR: --replication and --region required (or set DR_FSS_REPLICATION_OCIDS and DR_REGION in the config)" >&2; exit 2; }
 
 require_confirm "delete FSS replication $REP (unlocks target for write)" "$CONFIRM"
+require_ticket  "delete FSS replication $REP (unlocks target for write)" "$TICKET"
+wg_authorise "$CONFIRM" "$TICKET"
 
 echo "-> Current replication state"
-oci fs replication get --replication-id "$REP" --region "$REGION" \
+wg_oci fs replication get --replication-id "$REP" --region "$REGION" \
   | jq -r '.data | "   state: \(.["lifecycle-state"])  delta: \(.["delta-status"])  last-snap: \(.["recovery-point-time"] // "n/a")"'
 
 # Planned switchover (RB-01): --lossless uses --delete-mode ONE_MORE_CYCLE, which the CLI documents
@@ -36,7 +38,7 @@ oci fs replication get --replication-id "$REP" --region "$REGION" \
 DELETE_MODE=()
 [[ $LOSSLESS -eq 1 ]] && DELETE_MODE=(--delete-mode ONE_MORE_CYCLE)
 echo "-> Deleting replication resource (target becomes writable)${LOSSLESS:+; lossless: one more cycle first}"
-oci fs replication delete --replication-id "$REP" --region "$REGION" "${DELETE_MODE[@]}" --force --wait-for-state DELETED
+wg_oci fs replication delete --replication-id "$REP" --region "$REGION" "${DELETE_MODE[@]}" --force --wait-for-state DELETED
 
 record "FileStorage/Replication" "$REP" "DELETED - target unlocked for write"
 warn_failback_cost "OCI File Storage - File System Replication $REP"
