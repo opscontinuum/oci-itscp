@@ -22,10 +22,10 @@ addresses, and home addresses)" (§4.2.2, p. 37) [1].
 > repository. The same applies here, with less room for argument. See §6 before populating.
 
 Position labels are the ones already used in `dr-authority-matrix.md` and the runbooks. Do not
-introduce a second vocabulary: if a position is renamed, rename it there first. The skeleton
-`Contact roster` table at the end of `dr-authority-matrix.md` is superseded by this file; its
-"Windows / infra on-call" and "Finance representative" rows are the **Infra on-call** and
-**CFO delegate** positions here.
+introduce a second vocabulary: if a position is renamed, rename it there first. This file
+replaces the skeleton `Contact roster` table that `dr-authority-matrix.md` used to carry, which
+now points here; that table's "Windows / infra on-call" and "Finance representative" rows are
+the **Infra on-call** and **CFO delegate** positions here.
 
 ---
 
