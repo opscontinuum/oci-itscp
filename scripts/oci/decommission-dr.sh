@@ -172,12 +172,14 @@ if stage_gate 0; then
       exit 3
     fi
     echo "  archive verified: $ARCHIVE ($(du -h "$ARCHIVE" | cut -f1))"
-    if [[ -n "${DR_EVIDENCE_ARCHIVE_BUCKET:-}" ]]; then
-      wg_oci os object put --bucket-name "$DR_EVIDENCE_ARCHIVE_BUCKET" --namespace "${DR_OS_NAMESPACE:?}" \
-            --file "$ARCHIVE" --name "$(basename "$ARCHIVE")" --region "$PRIMARY_REGION" --force
-    else
-      echo "  NOTE: DR_EVIDENCE_ARCHIVE_BUCKET not set; archive is local only. Copy it to long-term retention before continuing."
-    fi
+  fi
+  # Outside the branch above so that --dry-run previews the upload too. A dry run
+  # of the decommission that omits one of its operations is not a dry run.
+  if [[ -n "${DR_EVIDENCE_ARCHIVE_BUCKET:-}" ]]; then
+    wg_oci os object put --bucket-name "$DR_EVIDENCE_ARCHIVE_BUCKET" --namespace "${DR_OS_NAMESPACE:?}" \
+          --file "$ARCHIVE" --name "$(basename "$ARCHIVE")" --region "$PRIMARY_REGION" --force
+  else
+    echo "  NOTE: DR_EVIDENCE_ARCHIVE_BUCKET not set; archive is local only. Copy it to long-term retention before continuing."
   fi
   log 0 "archive evidence" "$ARCHIVE" "verified"
 fi

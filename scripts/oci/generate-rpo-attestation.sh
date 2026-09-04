@@ -82,7 +82,7 @@ case "$RESOLUTION" in
 esac
 
 assert_read_only() {
-  if grep -qE '^[^#]*oci [a-z -]+ (create|update|delete)\b' "$0"; then
+  if grep -qE '^[^#]*(wg_)?oci [a-z -]+ (create|update|delete)\b' "$0"; then
     echo "REFUSED: generate-rpo-attestation.sh must remain read-only." >&2; exit 3
   fi
 }

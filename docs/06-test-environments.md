@@ -17,11 +17,17 @@ prove. **A green test suite must not be allowed to imply more than it demonstrat
 
 ## 1. Tier A — mocked unit tests ($0, runs in CI)
 
-**What runs.** `bats` for `scripts/oci/*.sh` and `scripts/dataguard/*.sh` with a fake `oci`
-binary on `PATH` returning canned JSON; Pester for `scripts/windows/*.ps1` under PowerShell 7 on
-Linux; `terraform validate` and `terraform test` with `mock_provider "oci"` blocks so no
-credentials are needed. GitHub Actions on push and pull request; the repository is public, so
-the minutes are free.
+**What runs.** `scripts/test-scripts.sh` — five checks over the shell tier: `shellcheck` when
+it is installed, the write guard's own unit tests, a static tripwire that fails if any script
+calls the OCI CLI outside the guard, a dry-run walk of every mutating script asserting that
+nothing outside the guard's allowlist is emitted and that nothing executes, and a check that
+every `scripts/` invocation written in a runbook names flags the script accepts. A poisoned
+`oci` on `PATH` records any execution, so "no tenancy was reached" is asserted rather than
+assumed. `terraform validate` and `terraform test` with `mock_provider "oci"` blocks cover the
+Terraform. Still to come: Pester for `scripts/windows/*.ps1` under PowerShell 7 on Linux, and
+per-script assertions against a fake `oci` returning canned JSON for the branches a dry run
+does not reach. GitHub Actions on push and pull request; the repository is public, so the
+minutes are free.
 
 **What a green run proves.**
 
