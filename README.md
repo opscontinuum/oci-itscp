@@ -195,6 +195,8 @@ docs/         01 architecture · 02 MTD tiers · 03 replication matrix · 04 mon
 runbooks/     RB-01 switchover · RB-02 failover · RB-03 failback
               RB-04 drill · RB-05 replication lifecycle
 scripts/
+  README.md   The command-line contract: flags, exit codes, the write guard allowlist
+  lib/        write-guard.sh — the allowlist every mutating OCI call goes through
   oci/        Posture control, health checks, guarded storage-failover actions,
               forensic capture, OCPU scaling, traffic steering, drift detection,
               RPO attestation, guarded decommission

@@ -13,11 +13,34 @@ set -uo pipefail
 # shellcheck source=../lib/write-guard.sh
 source "$(cd "$(dirname "$0")/../lib" && pwd)/write-guard.sh"
 
+usage() {
+  cat <<'USAGE'
+Usage: check-replication-health.sh [--help]
+
+Single-pass health check across every replication mechanism in
+docs/03-replication-matrix.md. Read-only, and structurally so: every OCI call
+goes through the write guard in scripts/lib/write-guard.sh, which refuses any
+mutating operation.
+
+Takes no arguments. Regions, resource OCIDs and thresholds come from the
+resource config: $DR_CONFIG, or terraform/dr-resources.env by default.
+
+Exit codes (this script reports findings through its exit code, so 1 and 2 mean
+severity here rather than the repository-wide meanings -- see scripts/README.md):
+  0  all green
+  1  warnings
+  2  critical
+  3  configuration or tooling error, including an unknown argument
+
+Feeds the readiness dashboard in docs/04-monitoring.md §3. Safe to run from cron.
+USAGE
+}
+
 # Takes no arguments: regions and resource OCIDs come from the resource config.
 if [[ $# -gt 0 ]]; then
   case "$1" in
-    -h|--help) echo "Usage: check-replication-health.sh   (no arguments; config from DR_CONFIG or terraform/dr-resources.env)"; exit 0 ;;
-    *) echo "ERROR: unknown argument: $1. This script takes no arguments; set regions in the config." >&2; exit 3 ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "ERROR: unknown argument: $1. This script takes no arguments; set regions in the config." >&2; usage >&2; exit 3 ;;
   esac
 fi
 

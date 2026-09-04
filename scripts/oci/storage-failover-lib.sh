@@ -88,6 +88,12 @@ record() {
 
 # warn_failback_cost <mechanism>
 warn_failback_cost() {
+  if [[ "${WG_DRY_RUN:-0}" == "1" ]]; then
+    echo
+    echo "  [dry-run] nothing was destroyed. A live run would destroy: $1"
+    echo "  [dry-run] and returning to Ashburn would then need a full reverse baseline of it."
+    return
+  fi
   cat <<NOTE
 
   ---------------------------------------------------------------------------
