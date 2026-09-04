@@ -11,7 +11,7 @@
     .val { font-size: 12.5px; font-weight: 700; }
     .ax  { font-size: 10.5px; }
 
-    /* Text drawn ON A FIXED-COLOUR PILL or BAR keeps a fixed colour in both themes,
+    /* Text drawn ON A FIXED-COLOUR PILL or BAR keeps a fixed color in both themes,
        because the pill/bar background does not follow the theme. Such elements must
        NOT carry .txt: a presentation attribute has specificity 0 and loses to it. */
     .on-r { fill: #a50e0e; }

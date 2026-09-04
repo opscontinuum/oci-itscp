@@ -18,7 +18,7 @@ pie showData
     "Network egress, backups, misc" : 5
 ```
 
-**~46% of the bill is elastic** (the ExaDB-D OCPU and Windows compute slices, 22% + 24%) and is reclaimed by *stopping compute*. **~11% is replica storage**, which is what people are tempted to reclaim by deleting replication — the smallest slice, bought at the price of an unprotected re-baseline window. *(unverified: engineering judgement; no documentation found in this revision — illustrative cost shape, not a vendor-published breakdown.)*
+**~46% of the bill is elastic** (the ExaDB-D OCPU and Windows compute slices, 22% + 24%) and is reclaimed by *stopping compute*. **~11% is replica storage**, which is what people are tempted to reclaim by deleting replication — the smallest slice, bought at the price of an unprotected re-baseline window. *(unverified: engineering judgment; no documentation found in this revision — illustrative cost shape, not a vendor-published breakdown.)*
 
 That asymmetry is the entire economic argument of this plan: **tear down compute, never tear down replication** (`docs/03-replication-matrix.md` §3).
 
@@ -34,7 +34,7 @@ That asymmetry is the entire economic argument of this plan: **tear down compute
 
 **The uncomfortable trade-off, stated plainly:** the only way to avoid the Exadata floor is to provision no standby Exadata and accept provisioning one during the disaster. That adds hours to RTO and carries capacity risk in a regional event — precisely when Phoenix is busiest and everyone else is doing the same thing. This plan recommends **keeping a standing Phoenix Exadata standby at minimum OCPU and tiering the application stack instead**, because that is where the elastic money is without a corresponding risk transfer.
 
-If budget forces a non-Exadata standby, re-check assumption **A5** (Hybrid Columnar Compression) in `docs/01-architecture.md` first. HCC is licensed for Exadata, Oracle ZFS Storage Appliance, Axiom, or FS1 storage [2]; other storage "deliver[s] the same space savings as on Oracle Exadata storage, but do not deliver the same level of query performance" [3]. Whether HCC-compressed data becomes **unreadable** (rather than merely slower) on unsupported storage was not confirmed in Oracle documentation *(unverified: engineering judgement; no documentation found in this revision)* — treat it as a risk to validate with Oracle Support before committing to a non-Exadata standby, not as a settled fact either way.
+If budget forces a non-Exadata standby, re-check assumption **A5** (Hybrid Columnar Compression) in `docs/01-architecture.md` first. HCC is licensed for Exadata, Oracle ZFS Storage Appliance, Axiom, or FS1 storage [2]; other storage "deliver[s] the same space savings as on Oracle Exadata storage, but do not deliver the same level of query performance" [3]. Whether HCC-compressed data becomes **unreadable** (rather than merely slower) on unsupported storage was not confirmed in Oracle documentation *(unverified: engineering judgment; no documentation found in this revision)* — treat it as a risk to validate with Oracle Support before committing to a non-Exadata standby, not as a settled fact either way.
 
 ---
 
@@ -49,7 +49,7 @@ Relative to full production cost. **Illustrative shape — model your own.**
 | **DRILL** | Drill instances only, temporary | Snapshot Standby | All active | WARM + drill duration | Testing |
 | **Naive "save money"** | Terminated | 0 OCPU | **Deleted** | ~10% | **Nothing — this is not DR** |
 
-The last row is what happens when tear-down is applied without the distinction in `docs/03-replication-matrix.md` §3. It looks like a 4× saving on a spreadsheet. It is a decision to not have disaster recovery, and it should be labelled that way if anyone proposes it.
+The last row is what happens when tear-down is applied without the distinction in `docs/03-replication-matrix.md` §3. It looks like a 4× saving on a spreadsheet. It is a decision to not have disaster recovery, and it should be labeled that way if anyone proposes it.
 
 ---
 
@@ -65,7 +65,7 @@ Template in `checklists/cost-model-template.md`. Line items to price:
 - FSS provisioned capacity in Phoenix
 - Object Storage replica capacity
 - **Autonomous Recovery Service protected-database capacity for whichever region is currently primary** — only one subscription is active at a time, following the primary role after a switchover or failover; there is no cross-region backup-copy feature, and the documented cross-region pattern is Data Guard between regions plus a local Recovery Service in the primary region [5]. OCI "enables customers to enable or disable backup on the standby database only if the backup destination of the primary database is Object Storage" [12] — a design that runs Recovery Service on both the primary and the standby database at once, each in its own region, is not supported.
-- **The Phoenix independent copy while Ashburn is primary** is a customer-scheduled RMAN backup of the standby database to an Object Storage bucket — Active Data Guard "can enable the Automatic Backup feature on a database with the standby role in a Data Guard association" [13], and the same permission extends to a manually scheduled RMAN backup from the standby — with a bucket-level retention rule *(unverified: engineering judgement; the retention-rule mechanics were not found in the sources consulted for this revision)*. **Alternative, at a different trade-off:** back up both primary and standby to Object Storage with a cross-region copy policy instead, which drops real-time redo protection and retention lock.
+- **The Phoenix independent copy while Ashburn is primary** is a customer-scheduled RMAN backup of the standby database to an Object Storage bucket — Active Data Guard "can enable the Automatic Backup feature on a database with the standby role in a Data Guard association" [13], and the same permission extends to a manually scheduled RMAN backup from the standby — with a bucket-level retention rule *(unverified: engineering judgment; the retention-rule mechanics were not found in the sources consulted for this revision)*. **Alternative, at a different trade-off:** back up both primary and standby to Object Storage with a cross-region copy policy instead, which drops real-time redo protection and retention lock.
 - Autonomous Recovery Service real-time redo transport — an extra-cost option on the active subscription [4]. Retention lock adds "a minimum delay of 14 days to permanently lock the retention period," and the maximum backup retention period is 95 days [14] — years-scale retention is not something Recovery Service provides; see the long-term backup line below.
 - **Long-term (multi-year) backup**, taken ahead of any standby decommission: a periodic RMAN `KEEP` backup to Object Storage with a cross-region copy, verified restorable, before the standby is removed (`runbooks/RB-05-replication-lifecycle.md` §5) — outside Recovery Service's 95-day retention ceiling [14].
 - OCI Vault, DNS, Health Checks — negligible but list them
@@ -103,7 +103,7 @@ oci resource-scheduler schedule create ...   # see terraform/modules/scheduler/ 
 ./scripts/oci/set-dr-posture.sh --posture warm
 ```
 
-Every posture change is logged to `evidence/posture-log.md` with reason and change reference. Two purposes: FinOps can attribute spend, and an auditor can see the estate was in a defensible posture at any given date.
+Every posture change is logged to `evidence/posture-log.md` with reason and change reference. Two purposes: FinOps can attribute spend, and an auditor can see the environment was in a defensible posture at any given date.
 
 ---
 
@@ -134,7 +134,7 @@ Three things that look like savings and are not:
 
 ## References
 
-This document is a synthesis: every statement about product behaviour or a standard is derived
+This document is a synthesis: every statement about product behavior or a standard is derived
 from the sources below, and any statement that could not be traced to a source is marked as
 unverified. Numbers restart per document. The consolidated index is `docs/references.md`.
 

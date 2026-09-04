@@ -99,7 +99,7 @@ procedures" (§4.3.2, printed page 39) [1]. This plan's are the runbooks, and th
 ISCP's Appendix D equivalent (§4.5, printed page 42: "Detailed recovery procedures and
 checklists") [1].
 
-Mapping NIST's list of typical recovery actions (§4.3.2, printed page 40) [1] to this estate:
+Mapping NIST's list of typical recovery actions (§4.3.2, printed page 40) [1] to this environment:
 
 | NIST action | Here |
 |---|---|
@@ -142,7 +142,7 @@ NIST names four trigger classes (§4.3.1, printed page 39) [1]. This plan's thre
 | "Other system-specific concerns exist" | Measured data loss exceeds the tier RPO | RB-02 §7d — leaves the runbook, becomes a business decision | [`RB-02`](../runbooks/RB-02-failover.md) §7d |
 
 *(Unverified: the specific thresholds — twice the drill-measured step duration, 50% of tier
-MTD — are this plan's engineering judgement. NIST requires that thresholds be defined and
+MTD — are this plan's engineering judgment. NIST requires that thresholds be defined and
 does not specify values.)*
 
 ---
@@ -160,7 +160,7 @@ Then go to [`docs/10-phase-reconstitution.md`](10-phase-reconstitution.md).
 
 ## References
 
-This document is a synthesis: every statement about product behaviour or a standard is derived
+This document is a synthesis: every statement about product behavior or a standard is derived
 from the sources below, and any statement that could not be traced to a source is marked as
 unverified. Numbers restart per document. The consolidated index is `docs/references.md`.
 
@@ -196,14 +196,14 @@ unverified. Numbers restart per document. The consolidated index is `docs/refere
 ### Unverified statements
 
 - The escalation thresholds in §5 — twice the drill-measured step duration, and 50% of the
-  tier MTD elapsed — are this plan's engineering judgement. NIST requires thresholds to be
+  tier MTD elapsed — are this plan's engineering judgment. NIST requires thresholds to be
   defined but specifies no values, and none have been calibrated against a completed Level 2
   drill in this revision.
 - Running Work Recovery Time activities concurrently with application bring-up (§3, step 8)
   is this plan's design choice. NIST states that reprocessing time is added to the RTO; it
   does not address whether the work may overlap.
 - The claim that an in-flight concurrent request is "the hardest class of damage to reason
-  about afterwards" (§3, step 1) is engineering judgement; no documentation found in this
+  about afterwards" (§3, step 1) is engineering judgment; no documentation found in this
   revision.
 
 [1]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-34r1.pdf "NIST SP 800-34 Rev. 1"

@@ -81,7 +81,7 @@ that the maximum duration of a redo source database stall caused by a redo trans
 can be precisely controlled" [5]. An unset `NetTimeout` on `EBSPROD_IAD2` leaves that stall
 duration undefined during an AD-2 network fault, and with it the RPO-0 claim in
 `docs/01-architecture.md` §3. **What value to set is a measured, same-region decision, not
-a published Oracle default** *(unverified: engineering judgement; measure against your own
+a published Oracle default** *(unverified: engineering judgment; measure against your own
 network — see `docs/04-monitoring.md` §1–§2 for the alarm that watches the resulting
 synchronized/unsynchronized state)*.
 
@@ -118,7 +118,7 @@ resources… redo apply performance also benefits greatly from symmetric primary
 databases" [1]. `docs/05-cost-and-teardown.md` §2 holds the Phoenix standby at a low OCPU
 floor between drills; whether that floor sustains redo apply against a captured
 period-close redo rate has not been measured in this revision *(unverified: engineering
-judgement; no documentation found in this revision)*. `docs/04-monitoring.md` §2 alarms on
+judgment; no documentation found in this revision)*. `docs/04-monitoring.md` §2 alarms on
 apply lag rising while transport lag stays flat, the HA guide's stated signature of an apply
 bottleneck.
 
@@ -165,7 +165,7 @@ when bandwidth, routing, or workload changes.
 
 ## References
 
-This document is a synthesis: every statement about product behaviour or a standard is derived
+This document is a synthesis: every statement about product behavior or a standard is derived
 from the sources below, and any statement that could not be traced to a source is marked as
 unverified. Numbers restart per document. The consolidated index is `docs/references.md`.
 

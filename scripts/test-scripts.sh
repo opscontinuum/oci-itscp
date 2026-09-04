@@ -247,7 +247,7 @@ else
     fail 'a dry run wrote an evidence record'
 fi
 
-# The one-way doors still refuse without their authorisation, dry run or not.
+# The one-way doors still refuse without their authorization, dry run or not.
 REFUSED_OK=1
 for args in "--dry-run" "--confirm --dry-run"; do
     # shellcheck disable=SC2086

@@ -25,7 +25,7 @@ its concept of operations (§4.1, printed page 35) [1]. See
 
 **Two activities, and this plan keeps them strictly separate.** Validation asks *is the
 recovered system correct?* Deactivation asks *are we ready for the next one?* A recovery that
-passes validation but skips deactivation leaves the estate unprotected — running in Phoenix
+passes validation but skips deactivation leaves the environment unprotected — running in Phoenix
 with no standby, no fresh backup, and no updated plan.
 
 ---
@@ -41,7 +41,7 @@ with no standby, no fresh backup, and no updated plan.
 >
 > NIST's Reconstitution assumes a return to normal, and notes that if "the original facility
 > is unrecoverable" the phase applies to establishing a new permanent location (§4.4, printed
-> page 41) [1]. In this estate both are live options, and **they are different decisions
+> page 41) [1]. In this environment both are live options, and **they are different decisions
 > taken at different times**:
 >
 > - **Reconstitute in place** — Phoenix becomes the permanent primary. Reconstitution ends here.
@@ -124,16 +124,16 @@ Deactivation is an announcement made by the same authority that declared the dis
 ([`roles-and-responsibilities.md`](../checklists/roles-and-responsibilities.md) §2), sent to
 the same list that was notified at Activation
 ([`contact-roster.md`](../checklists/contact-roster.md) §1). Declaration and deactivation are
-a matched pair; an unclosed declaration leaves the organisation unsure whether it is still in
+a matched pair; an unclosed declaration leaves the organization unsure whether it is still in
 a disaster.
 
-**Reassessment and reauthorization.** NIST requires a judgement on whether the system "has
+**Reassessment and reauthorization.** NIST requires a judgment on whether the system "has
 undergone significant change and will require reassessment and reauthorization" (§4.4,
 printed page 41) [1], naming a new or upgraded hardware platform and moving to a new facility
 as examples (footnote 34). A region change is a strong candidate. This plan does not carry an
-authorisation boundary of its own — see [`docs/07`](07-itil4-alignment.md) §1a, which records
-that the commercial OC1 regions used here carry no FedRAMP or DoD authorisation — so the
-decision belongs to whoever owns that boundary in your organisation.
+authorization boundary of its own — see [`docs/07`](07-itil4-alignment.md) §1a, which records
+that the commercial OC1 regions used here carry no FedRAMP or DoD authorization — so the
+decision belongs to whoever owns that boundary in your organization.
 
 ---
 
@@ -171,7 +171,7 @@ Recorded here rather than quietly omitted, consistent with how `docs/07` §Gaps 
 
 ## References
 
-This document is a synthesis: every statement about product behaviour or a standard is derived
+This document is a synthesis: every statement about product behavior or a standard is derived
 from the sources below, and any statement that could not be traced to a source is marked as
 unverified. Numbers restart per document. The consolidated index is `docs/references.md`.
 
@@ -214,12 +214,12 @@ unverified. Numbers restart per document. The consolidated index is `docs/refere
 
 ### Unverified statements
 
-- The judgement that a second writable EBS copy "would diverge, and reconciling it is worse
-  than the outage" (§3) is engineering judgement about this application, not a sourced claim.
+- The judgment that a second writable EBS copy "would diverge, and reconciling it is worse
+  than the outage" (§3) is engineering judgment about this application, not a sourced claim.
   NIST's footnote 33 is cited only for the narrower point that concurrent processing is not
   required.
 - The re-protection table in §4.1 states the post-failover state of each protection mechanism.
-  The individual mechanism behaviours are sourced in `docs/03`; their aggregation into "you
+  The individual mechanism behaviors are sourced in `docs/03`; their aggregation into "you
   are running unprotected until re-protection completes", and the claim that this is the real
   exit criterion, are this plan's framing.
 - The exit checklist in §5 is this plan's own construction from NIST's five deactivation

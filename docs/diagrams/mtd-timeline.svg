@@ -11,11 +11,11 @@
     .cap  { font-size: 12px; font-weight: 700; letter-spacing: .04em; font-family: ui-sans-serif, "Segoe UI", Helvetica, Arial, sans-serif; }
     .ttl  { font-size: 15px; font-weight: 700; }
 
-    /* Accent colours for text drawn ON THE PAGE BACKGROUND. These must follow the
+    /* Accent colors for text drawn ON THE PAGE BACKGROUND. These must follow the
        theme, so they are defined after .txt/.mut and overridden for dark mode. */
     .acc-r { fill: #a50e0e; }
 
-    /* Text drawn ON A FIXED-COLOUR PILL keeps a fixed accent colour in both themes,
+    /* Text drawn ON A FIXED-COLOUR PILL keeps a fixed accent color in both themes,
        because the pill background does not follow the theme. Such elements must NOT
        carry .txt — an SVG presentation attribute has specificity 0 and would lose to
        it, turning the label near-white on a near-white pill in dark mode. */

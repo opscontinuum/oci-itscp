@@ -1,8 +1,8 @@
 # References — consolidated index
 
-**Nothing in this plan is original work.** Every statement about product behaviour or a
+**Nothing in this plan is original work.** Every statement about product behavior or a
 standard in every document, runbook and checklist is derived from one of the sources below and
-carries a numbered inline marker that links to it; design targets and engineering judgements that
+carries a numbered inline marker that links to it; design targets and engineering judgments that
 could not be traced to a source are marked as unverified in the document that makes them. Each document keeps its own numbered References section (numbers restart per
 document); this page is the index across all of them, grouped by publisher.
 

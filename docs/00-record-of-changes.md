@@ -10,7 +10,7 @@ copy has no `git log`.
 
 > **This is a public example repository.** The rows below are seeded from this repository's
 > real git history so the record is accurate from day one, but the plan describes a hypothetical
-> corporation with no real estate behind it. In your private fork, keep this file and continue
+> corporation with no real environment behind it. In your private fork, keep this file and continue
 > the table; do not inherit these rows as if they were your own change history.
 
 ## 1. Format
@@ -49,12 +49,12 @@ evidence for it.
 | All; `docs/07` (new); `docs/references.md` (new) | Review pass: every document, runbook and checklist gains numbered inline source markers and a References section, with the consolidated index in `docs/references.md`; statements with no source are marked unverified. Design corrections against Oracle documentation (Full Stack DR member types and billing, Object Storage replication does not copy pre-existing objects, File Storage NFSv3 and 15-minute minimum interval, no cross-region Recovery Service copy, snapshot standby and reinstate prerequisites, ExaDB-D CLI group and OCPU floor, corrected My Oracle Support note IDs). MTD = RTO + WRT stated as the plan's own decomposition. Eight referenced-but-absent scripts added; `docs/07` ITIL 4, NIST and DoD alignment added (`e9d925e`) | 2026-09-01 | Wicnere CI (git author) |
 | `docs/01`–`05`, `docs/07`, `runbooks/RB-01`–`RB-05`, `checklists/`; `docs/06` (new); `docs/citation-audit.md` (new) | Adversarial review remediation: Data Guard Broker steps around planned switchover and unplanned failover, RPO 0 stated as conditional; Windows tiers split across Ashburn AD-1 and AD-2 with unique physical names and Oracle's logical-host-names pattern; volume model made explicit; Recovery Service protects the primary only, Phoenix copy is an RMAN backup of the standby; public load balancer behind WAF; transport lag as the RPO signal and apply lag as the RTO signal; citation-audit findings applied; `docs/06` test environments added (`bc11d62`) | 2026-09-01 | Wicnere CI (git author) |
 | `docs/01` §1 (A6), §5.3 | State the Remote Peering dependency and its unverified bandwidth guarantee (`004326f`) | 2026-09-01 | Wicnere CI (git author) |
-| `README.md`; `docs/03`, `docs/04`, `docs/05`; `terraform/` (root module and ten modules, new) | Terraform for the DR estate, apply-locked and verified offline, never applied; `docs/03`–`05` and the README updated to match (`1a9a032`) | 2026-09-01 | Wicnere CI (git author) |
+| `README.md`; `docs/03`, `docs/04`, `docs/05`; `terraform/` (root module and ten modules, new) | Terraform for the DR environment, apply-locked and verified offline, never applied; `docs/03`–`05` and the README updated to match (`1a9a032`) | 2026-09-01 | Wicnere CI (git author) |
 | `docs/00` (new); `README.md`; `docs/references.md` | Add this record of changes, link it from the README reading list, and index it in `docs/references.md`. Closes issue #1 | 2026-09-02 | Wicnere CI (git author) |
 | `skills/itscp-compliance-audit/SKILL.md` (new); `docs/07` §1a | Add a skill that audits the plan against NIST SP 800-34 Rev. 1, the SP 800-53 Rev. 5 CP family, FedRAMP High, DoDI 8510.01 and CNSSI 1253, with every requirement starting refuted; name the audited artefact the ITSCP and state the ISCP crosswalk it is assessed through (`a298997`, `0b4b772`) | 2026-09-02 | Wicnere CI (git author) |
 | All | Name this plan the ITSCP throughout and reserve "ISCP" for NIST's own artefact; extend the record-of-changes seed and bring it into the plan's citation style (`6339f75`, `46f6e60`) | 2026-09-02 | Wicnere CI (git author) |
 | `docs/00-plan-approval.md` (new); `README.md`; `docs/references.md` | Add the Plan Approval statement NIST SP 800-34 Rev. 1 Appendix A places above "1. Introduction" at every FIPS 199 impact level, unsigned by design; make the ISCP/ITSCP distinction explicit in it; bring its citations into the citation-audit format. Closes issue #2 (`b20d865`, `31af003`, `a1f0389`) | 2026-09-02 | Wicnere CI (git author) |
-| `checklists/contingency-training.md` (new); `docs/07` §1a; `README.md` | Add the contingency training programme NIST keeps separate from drills — annual syllabus, new-joiner path, closed-book evidence for CP-3 — and narrow the CP-3 claim in `docs/07` accordingly. Closes issue #4 (`4b27c58`) | 2026-09-02 | Wicnere CI (git author) |
+| `checklists/contingency-training.md` (new); `docs/07` §1a; `README.md` | Add the contingency training program NIST keeps separate from drills — annual syllabus, new-joiner path, closed-book evidence for CP-3 — and narrow the CP-3 claim in `docs/07` accordingly. Closes issue #4 (`4b27c58`) | 2026-09-02 | Wicnere CI (git author) |
 | `checklists/contact-roster.md` (new); `README.md` | Add the contact roster and call tree required by NIST SP 800-34 Rev. 1 §4.2.2, including the external and interconnected-system POCs and the unreachable-contact procedure. Closes issue #3 (`0c701b2`) | 2026-09-02 | Wicnere CI (git author) |
 | `docs/08`, `docs/09`, `docs/10` (new); `checklists/roles-and-responsibilities.md` (new); `checklists/outage-assessment.md` (new); `README.md` | Add the concept-of-operations overview of the three ISCP phases NIST SP 800-34 Rev. 1 §4.1 expects, one document per phase, each routing to the runbook that performs the work and stating what this plan does not have; add the roles, teams and line of succession the phases depend on; add the outage assessment procedure that produces the repair estimate the `RB-02` §0 gate consumes | 2026-09-02 | Wicnere CI (git author) |
 
@@ -88,7 +88,7 @@ Recorded so the next reader does not have to re-derive them [1]:
 
 ## References
 
-This document is a synthesis: every statement about product behaviour or a standard is derived
+This document is a synthesis: every statement about product behavior or a standard is derived
 from the sources below, and any statement that could not be traced to a source is marked as
 unverified. Numbers restart per document. The consolidated index is `docs/references.md`.
 

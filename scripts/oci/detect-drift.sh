@@ -95,7 +95,7 @@ if command -v terraform >/dev/null 2>&1 && ls "$REPO_ROOT"/terraform/*.tf >/dev/
     terraform -chdir="$REPO_ROOT/terraform" plan -detailed-exitcode -input=false -no-color >/tmp/drift-tf-plan.$$ 2>&1
     case $? in
       0) ok "terraform plan: no changes" ;;
-      2) finding "HIGH" "Terraform" "plan shows pending changes -- live estate has diverged from code" "Review $REPO_ROOT/terraform plan output; apply through change control" ;;
+      2) finding "HIGH" "Terraform" "plan shows pending changes -- live environment has diverged from code" "Review $REPO_ROOT/terraform plan output; apply through change control" ;;
       *) finding "MEDIUM" "Terraform" "plan failed to run ($(tail -1 /tmp/drift-tf-plan.$$))" "Fix the Terraform workspace before trusting the rest of this report" ;;
     esac
     rm -f /tmp/drift-tf-plan.$$

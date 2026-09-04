@@ -98,7 +98,7 @@ variable "ashburn_ad3" {
 }
 
 variable "phoenix_ad1" {
-  description = "us-phoenix-1 is modelled here with a single AD by default — confirm the AD count for your own tenancy/region before relying on this."
+  description = "us-phoenix-1 is modeled here with a single AD by default — confirm the AD count for your own tenancy/region before relying on this."
   type        = string
   default     = "AD-1"
 }
@@ -135,7 +135,7 @@ variable "dr_posture" {
 }
 
 variable "windows_image_id" {
-  description = "OCID of the Windows Server custom image (docs/01 §4.2 — Oracle Cloud Agent, MKS Toolkit, JRE, Forms client baked in). Estate-specific, no meaningful default."
+  description = "OCID of the Windows Server custom image (docs/01 §4.2 — Oracle Cloud Agent, MKS Toolkit, JRE, Forms client baked in). Environment-specific, no meaningful default."
   type        = string
   default     = ""
 }

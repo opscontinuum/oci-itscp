@@ -1,6 +1,6 @@
 # RB-01 — Planned Switchover: Ashburn → Phoenix
 
-**Type:** Planned, orderly transition [1]; zero data loss for the database while the switchover completes — the storage tiers are bounded by replica age, not zero (§3). **Expected duration:** 45–90 min *(unverified: engineering judgement; no documentation found in this revision)*. **Approval:** Change Advisory Board.
+**Type:** Planned, orderly transition [1]; zero data loss for the database while the switchover completes — the storage tiers are bounded by replica age, not zero (§3). **Expected duration:** 45–90 min *(unverified: engineering judgment; no documentation found in this revision)*. **Approval:** Change Advisory Board.
 
 > **RPO 0 is conditional.** It holds only while Ashburn is primary and `EBSPROD_IAD2` is synchronized under Maximum Availability. Once this runbook completes, Phoenix is primary under Maximum Performance with Ashburn as an ASYNC standby, and the database RPO becomes the ASYNC transport lag — see §2 and §6.
 **Use when:** DR exercise with real production, planned Ashburn maintenance, or pre-emptive evacuation (e.g. forecast regional event).
@@ -49,7 +49,7 @@ sequenceDiagram
 - [ ] **Not in period close**, or Finance has explicitly signed off
 - [ ] Data Guard lag below the plan threshold (60 s) and no gaps: `scripts/dataguard/dg-health.sh` (reads `V$DATAGUARD_STATS` transport lag and apply lag [4])
 - [ ] All replication healthy: `scripts/oci/check-replication-health.sh`
-- [ ] Oracle Cloud Agent **Run Command plugin** enabled and running on every PHX Windows instance — FSDR user-defined steps run only through Run Command (or Oracle Functions) [5], and the plugin must be enabled and running on the instance [6]. In our experience this is the #1 cause of plan-step failure *(unverified: engineering judgement; no documentation found in this revision)*
+- [ ] Oracle Cloud Agent **Run Command plugin** enabled and running on every PHX Windows instance — FSDR user-defined steps run only through Run Command (or Oracle Functions) [5], and the plugin must be enabled and running on the instance [6]. In our experience this is the #1 cause of plan-step failure *(unverified: engineering judgment; no documentation found in this revision)*
 - [ ] Latest volume group replica timestamp within tolerance
 - [ ] **No DR drill in progress.** While a DR Protection Group is in a `DrillInProgress` state, Switchover and Failover plans (and their prechecks) are refused until a Stop Drill plan runs [1]
 - [ ] Rollback decision-maker identified and available for the whole window
@@ -74,7 +74,7 @@ dgmgrl / "validate database EBSPROD_PHX"     # must report "Ready for Switchover
 ./scripts/oci/check-replication-health.sh          # regions and OCIDs come from terraform/dr-resources.env
 ```
 
-The Broker is Oracle's recommended way to administer Data Guard for EBS [7]; the command-line scenarios for role transitions are documented in the Broker guide [8]. **The downgrade step is not optional.** Skip it and `VALIDATE DATABASE` can report the switchover blocked outright — the Broker's own worked example shows exactly this failure mode against a target whose `LogXptMode` is ASYNC while the configuration is still Maximum Availability: `Error: Switchover to this standby is not possible since there are no other standbys that can support the protection mode ... Ready for Switchover: No` [8]. Oracle's own MAA guidance for the equivalent Far Sync topology states the same requirement directly: "the protection level must be dropped to Maximum Performance prior to a switchover (planned event) as the level must be enforceable on the target in order to perform the transition" [31]. **Fast-start failover stays disabled after this switchover** — Phoenix becomes primary with no Ashburn-local synchronous standby it could name as an FSFO target *(unverified: engineering judgement; no documentation found in this revision)* — and `EBSPROD_IAD` runs onward as an ASYNC standby until failback (§6) re-enables Maximum Availability. With the downgrade done, the expected pass line is `Ready for Switchover: Yes` [8].
+The Broker is Oracle's recommended way to administer Data Guard for EBS [7]; the command-line scenarios for role transitions are documented in the Broker guide [8]. **The downgrade step is not optional.** Skip it and `VALIDATE DATABASE` can report the switchover blocked outright — the Broker's own worked example shows exactly this failure mode against a target whose `LogXptMode` is ASYNC while the configuration is still Maximum Availability: `Error: Switchover to this standby is not possible since there are no other standbys that can support the protection mode ... Ready for Switchover: No` [8]. Oracle's own MAA guidance for the equivalent Far Sync topology states the same requirement directly: "the protection level must be dropped to Maximum Performance prior to a switchover (planned event) as the level must be enforceable on the target in order to perform the transition" [31]. **Fast-start failover stays disabled after this switchover** — Phoenix becomes primary with no Ashburn-local synchronous standby it could name as an FSFO target *(unverified: engineering judgment; no documentation found in this revision)* — and `EBSPROD_IAD` runs onward as an ASYNC standby until failback (§6) re-enables Maximum Availability. With the downgrade done, the expected pass line is `Ready for Switchover: Yes` [8].
 
 Run the FSDR **plan prechecks** from the console or CLI. Prechecks validate that the plan is compliant with the members and configuration of the protection groups — for example that the database and its peer are Data Guard peers with the correct roles, that a volume group replica exists in the standby region, and that the FSS target is unexported with a replication snapshot [9]. You can also tick **Enable prechecks** so they run before the switchover plan itself [10]. Every precheck must pass. Do not proceed on a warning you have not read and understood.
 
@@ -123,7 +123,7 @@ What each fallback step does, and why the order holds:
 
 ## 4. Concurrent Manager handling
 
-Always run `cmclean.sql` before starting Concurrent Managers in the new primary. Stale `FND_CONCURRENT_QUEUES` / ICM rows from the old region will otherwise prevent managers from starting, and the failure mode is confusing *(unverified: engineering judgement; no documentation found in this revision)*.
+Always run `cmclean.sql` before starting Concurrent Managers in the new primary. Stale `FND_CONCURRENT_QUEUES` / ICM rows from the old region will otherwise prevent managers from starting, and the failure mode is confusing *(unverified: engineering judgment; no documentation found in this revision)*.
 
 ```sql
 -- scripts/ebs/cmclean.sql   (obtain the current version from My Oracle Support Doc ID 134007.1)
@@ -132,7 +132,7 @@ Always run `cmclean.sql` before starting Concurrent Managers in the new primary.
 
 **Applicability caveat.** `cmclean.sql` is a widely used practice, but its My Oracle Support note 134007.1 [21] is publicly described as valid for Applications releases 10.7 to 12.1.3 [22], and Oracle's EBS 12.2 business-continuity material does not contain a cmclean step [23]. Confirm applicability to your 12.2 release with Oracle Support before relying on it.
 
-**Do not** run `FND_CONC_CLONE.SETUP_CLEAN` in a switchover — EBS is configured with **logical host names** that are resolved region-locally (`docs/01-architecture.md` §5.1), so `FND_NODES` never changes across a role transition and is already correct. Oracle's documented use of `setup_clean` is the post-role-transition clean-out of `FND_NODES` followed by AutoConfig on the database tier and then on every application tier node, for both run and patch file systems [23]; that is the cycle you would be forcing. Running it needlessly turns a one-hour switchover into a multi-hour one *(unverified: engineering judgement; no documentation found in this revision)*.
+**Do not** run `FND_CONC_CLONE.SETUP_CLEAN` in a switchover — EBS is configured with **logical host names** that are resolved region-locally (`docs/01-architecture.md` §5.1), so `FND_NODES` never changes across a role transition and is already correct. Oracle's documented use of `setup_clean` is the post-role-transition clean-out of `FND_NODES` followed by AutoConfig on the database tier and then on every application tier node, for both run and patch file systems [23]; that is the cycle you would be forcing. Running it needlessly turns a one-hour switchover into a multi-hour one *(unverified: engineering judgment; no documentation found in this revision)*.
 
 ## 5. Validation pack
 
@@ -170,7 +170,7 @@ Before the database switchover completes, rollback is trivial — abort the plan
 
 ## References
 
-This document is a synthesis: every statement about product behaviour or a standard is derived
+This document is a synthesis: every statement about product behavior or a standard is derived
 from the sources below, and any statement that could not be traced to a source is marked as
 unverified. Numbers restart per document. The consolidated index is `docs/references.md`.
 
@@ -211,9 +211,9 @@ unverified. Numbers restart per document. The consolidated index is `docs/refere
 ### Unverified statements
 
 - Header: expected duration 45–90 min — engineering estimate.
-- §1: a stopped Run Command plugin is the #1 cause of plan-step failure — engineering judgement.
-- §2: fast-start failover cannot re-target itself onto Phoenix because no Ashburn-local synchronous standby exists to name — engineering judgement; the consequence follows from the cited Broker documentation but is not itself stated in a fetched page.
-- §4: stale `FND_CONCURRENT_QUEUES` / ICM rows block manager start after a role change — engineering judgement.
+- §1: a stopped Run Command plugin is the #1 cause of plan-step failure — engineering judgment.
+- §2: fast-start failover cannot re-target itself onto Phoenix because no Ashburn-local synchronous standby exists to name — engineering judgment; the consequence follows from the cited Broker documentation but is not itself stated in a fetched page.
+- §4: stale `FND_CONCURRENT_QUEUES` / ICM rows block manager start after a role change — engineering judgment.
 - §4: an unnecessary `SETUP_CLEAN` + AutoConfig cycle turns a one-hour switchover into a multi-hour one — engineering estimate.
 
 [1]: https://docs.oracle.com/en-us/iaas/disaster-recovery/doc/dr-plans-type.html "Types of Disaster Recovery Plans — Oracle"

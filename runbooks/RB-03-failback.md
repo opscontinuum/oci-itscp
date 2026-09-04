@@ -47,7 +47,7 @@ gantt
   DGMGRL> edit configuration set protection mode as MaxAvailability;
   DGMGRL> enable fast_start failover;
   ```
-  Only do this once `EBSPROD_IAD` is reinstated and its lag has reached steady state *(unverified: engineering judgement; enabling Maximum Availability against a standby that has not caught up is expected to stall primary commits, but this was not confirmed in a fetched page)*. Once this step is done, RPO 0 is restored for as long as Ashburn stays primary (`scripts/dataguard/tnsnames-tuning.md` §4).
+  Only do this once `EBSPROD_IAD` is reinstated and its lag has reached steady state *(unverified: engineering judgment; enabling Maximum Availability against a standby that has not caught up is expected to stall primary commits, but this was not confirmed in a fetched page)*. Once this step is done, RPO 0 is restored for as long as Ashburn stays primary (`scripts/dataguard/tnsnames-tuning.md` §4).
 - [ ] **Reverse Volume Group Replication** (PHX→IAD) baseline **complete** and in steady-state delta
 - [ ] **Reverse FSS File System Replication** baseline complete. A target file system that was never exported can be reused as a replication target without a full base copy; once it has been exported (as it was during the failover), reuse requires a full base copy [3].
 - [ ] **Reverse Object Storage Replication Policy** established and caught up. Creating a replication policy does **not** replicate objects already in the source bucket [4] — bulk-copy the Phoenix bucket contents to Ashburn *before* creating the reverse policy, not after.
@@ -87,7 +87,7 @@ While running in Phoenix, changes were made that must not be lost:
 
 ## References
 
-This document is a synthesis: every statement about product behaviour or a standard is derived
+This document is a synthesis: every statement about product behavior or a standard is derived
 from the sources below, and any statement that could not be traced to a source is marked as
 unverified. Numbers restart per document. The consolidated index is `docs/references.md`.
 
@@ -101,7 +101,7 @@ unverified. Numbers restart per document. The consolidated index is `docs/refere
 
 - Header: elapsed time "days to weeks" — engineering estimate, depends on measured baseline durations.
 - Header: cutover window 45–90 min — engineering estimate (same figure as RB-01, executed in reverse).
-- §2: enabling Maximum Availability against a standby that has not reached steady state stalls primary commits — engineering judgement.
+- §2: enabling Maximum Availability against a standby that has not reached steady state stalls primary commits — engineering judgment.
 
 [1]: https://docs.oracle.com/en/database/oracle/oracle-database/19/dgbkr/using-data-guard-broker-to-manage-switchovers-failovers.html "Switchover and Failover Operations — Oracle Data Guard Broker 19c"
 [2]: https://docs.oracle.com/en-us/iaas/tools/oci-cli/latest/oci_cli_docs/cmdref/db/database.html "oci db database — OCI CLI 3.91.0"

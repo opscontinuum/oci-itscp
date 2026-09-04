@@ -209,7 +209,7 @@ A.1-2 and A.2-2).
 | N34-A-5.4 | 5.4 Recovery Declaration · A.3-9 | "Upon successfully completing testing and validation, the {designated authority} will formally declare recovery efforts complete, and that {system name} is in normal operations. {System name} business and technical POCs will be notified of the declaration by the ISCP Coordinator." |
 | N34-A-5.5 | 5.5 Notifications (users) · A.3-9 | "Upon return to normal system operations, {system name} users will be notified by {role} using predetermined notification procedures (e.g., email, broadcast message, phone calls, etc.)." |
 | N34-A-5.6 | 5.6 Cleanup · A.3-9 | "Cleanup is the process of cleaning up or dismantling any temporary recovery locations, restocking supplies used, returning manuals or other documentation to their original locations, and readying the system for a possible future contingency event." |
-| N34-A-5.7 | 5.7 Offsite Data Storage · A.3-9 | "It is important that all backup and installation media used during recovery be returned to the offsite data storage location." For a cloud estate, state what "offsite" is (the plan's Recovery Service and cross-region backup copies) and whether any return step exists. |
+| N34-A-5.7 | 5.7 Offsite Data Storage · A.3-9 | "It is important that all backup and installation media used during recovery be returned to the offsite data storage location." For a cloud environment, state what "offsite" is (the plan's Recovery Service and cross-region backup copies) and whether any return step exists. |
 | N34-A-5.8 | 5.8 Data Backup · A.3-10 | "As soon as reasonable following recovery, the system should be fully backed up and a new copy of the current operational system stored for future recovery efforts." |
 | N34-A-5.9 | 5.9 Event Documentation · A.3-10 | "Activity logs (including recovery steps performed and by whom, the time the steps were initiated and completed, and any problems or concerns encountered while executing activities); Functionality and data testing results; Lessons learned documentation; and After Action Report." "Event documentation procedures should detail responsibilities for development, collection, approval, and maintenance." |
 | N34-A-5.10 | 5.10 Deactivation · A.3-10 | "Once all activities have been completed and documentation has been updated, the {designated authority} will formally deactivate the ISCP recovery and reconstitution effort. Notification of this declaration will be provided to all business and technical POCs." |
@@ -301,7 +301,7 @@ for national security systems (Checklist E).
 
 ## 6. Checklist C: FedRAMP High
 
-FedRAMP has two things in force at once, and the report audits both, labelled.
+FedRAMP has two things in force at once, and the report audits both, labeled.
 
 **C.1 The Rev. 5 High baseline is legacy but still the baseline until 2027-01-01.** The
 workbook's COVERSHEET reads: "LEGACY NOTICE June 23, 2026 This is a legacy document that is
@@ -409,7 +409,7 @@ DoDI row. Do not paraphrase the 2022 text from memory.
 
 | ID | Location (2014 ed., Change 3) · PDF page | Requirement (verbatim) | What the repo can evidence |
 |---|---|---|---|
-| DoDI-3d | Policy ¶3.d · 2 | "All DoD IS and PIT systems must be categorized in accordance with Committee on National Security Systems Instruction (CNSSI) 1253 (Reference (e)), implement a corresponding set of security controls from NIST SP 800-53 (Reference (f)), and use assessment procedures from NIST SP 800-53A (Reference (g)) and DoD-specific assignment values, overlays, implementation guidance, and assessment procedures found on the Knowledge Service". (docs/07 §1a quotes an elided form of this sentence; check its ellipsis against the full text.) | Whether the plan states a CNSSI 1253 categorisation and which 800-53 baseline it implements. The KS assignment values are login-gated: INACCESSIBLE for that clause. |
+| DoDI-3d | Policy ¶3.d · 2 | "All DoD IS and PIT systems must be categorized in accordance with Committee on National Security Systems Instruction (CNSSI) 1253 (Reference (e)), implement a corresponding set of security controls from NIST SP 800-53 (Reference (f)), and use assessment procedures from NIST SP 800-53A (Reference (g)) and DoD-specific assignment values, overlays, implementation guidance, and assessment procedures found on the Knowledge Service". (docs/07 §1a quotes an elided form of this sentence; check its ellipsis against the full text.) | Whether the plan states a CNSSI 1253 categorization and which 800-53 baseline it implements. The KS assignment values are login-gated: INACCESSIBLE for that clause. |
 | DoDI-3f | Policy ¶3.f · 3 | "Each DoD IS, DoD partnered system, and PIT system must have an authorizing official (AO) responsible for authorizing the system's operation based on achieving and maintaining an acceptable risk posture." | Whether the plan names the AO role in the reconstitution reauthorization decision (N34-4.4b names the Authorizing Official). |
 | DoDI-3i | Policy ¶3.i · 3 | "A plan of action and milestones (POA&M) must be developed and maintained to address known vulnerabilities in the IS or PIT system." | Whether missed RTO/RPO findings (RB-04 §5 defect list; N34-3.2.1c) are tracked as POA&M items. |
 | DoDI-3j | Policy ¶3.j · 3 | "Continuous monitoring capabilities will be implemented to the greatest extent possible." | `docs/04-monitoring.md`. |
@@ -417,7 +417,7 @@ DoDI row. Do not paraphrase the 2022 text from memory.
 | DoDI-E6-2a | Enclosure 6 ¶2.a Step 1 · 28 | "Categorize the system in accordance with Reference (e) and then document the results in the security plan. ... the IO identifies the potential impact (low, moderate, or high) resulting from loss of confidentiality, integrity, and availability". | Same evidence as N34-3.2.1a. |
 | DoDI-E6-2b | Enclosure 6 ¶2.b(2) Step 2 · 29–30 | "Identify the security control baseline for the system, as provided in Reference (e), and document in the security plan." and "(b) Identifying overlays that apply to the IS or PIT system due to information contained within the system or environment of operation." and "If a selected control is not implemented, then the rationale for not implementing the controls must be documented in the security plan and POA&M." | The baseline and overlays come from CNSSI 1253 (Checklist E). The last sentence is the standard the report's NOT APPLICABLE rows must meet. |
 | DoDI-E6-2d | Enclosure 6 ¶2.d(2)(a) Step 4 · 33 | "If no vulnerabilities are found through the process of executing the assessment procedures, the security control is recorded as compliant. If vulnerabilities are found, the control is recorded as NC in the POA&M, with sufficient explanation. Security controls that are not technically or procedurally relevant to the system, as determined by the AO, will be recorded as not applicable (NA) in the POA&M, with sufficient justification." | This is the DoD form of this skill's verdict rule; cite it when defending the absence of "not assessed". |
-| DoDI-E6-2e | Enclosure 6 ¶2.e(2) Step 5 · 35 | "The ISSM assembles the security authorization package, consisting of the updated security plan, the SAR, and the POA&M. The security authorization package must also contain, or provide links to, the appropriate documentation for any security controls that are being satisfied through inheritance (e.g., security authorization packages, contract documents, MOAs, and SLAs)." | Whether the plan identifies what it inherits from Oracle (CP-6, CP-7, CP-8 provider agreements) and where the provider's authorization package is. `docs/07` §1a's design finding (OC1 regions carry no FedRAMP or DoD IL authorisation) is the existing evidence and is itself a REFUTED for DoD use. |
+| DoDI-E6-2e | Enclosure 6 ¶2.e(2) Step 5 · 35 | "The ISSM assembles the security authorization package, consisting of the updated security plan, the SAR, and the POA&M. The security authorization package must also contain, or provide links to, the appropriate documentation for any security controls that are being satisfied through inheritance (e.g., security authorization packages, contract documents, MOAs, and SLAs)." | Whether the plan identifies what it inherits from Oracle (CP-6, CP-7, CP-8 provider agreements) and where the provider's authorization package is. `docs/07` §1a's design finding (OC1 regions carry no FedRAMP or DoD IL authorization) is the existing evidence and is itself a REFUTED for DoD use. |
 
 Rows DoDI-3d and DoDI-E6-2b carry INACCESSIBLE sub-clauses (Knowledge Service, CNSSI 1253);
 say which clause is inaccessible and which is assessed.
@@ -431,16 +431,16 @@ CAC. DoDI 8510.01 Reference (e) cites it as "Committee on National Security Syst
 Instruction 1253, 'Security Categorization and Control Selection for National Security
 Systems,' March 27, 2014, as amended". That is the whole of what this skill can verify.
 
-Every CNSSI 1253 row is INACCESSIBLE unless the organisation running the audit supplies the
+Every CNSSI 1253 row is INACCESSIBLE unless the organization running the audit supplies the
 document, in which case the auditor quotes it and pins its hash. The rows exist so that the
 count of INACCESSIBLE rows is visible:
 
 | ID | What CNSSI 1253 is cited (by DoDI 8510.01) as providing | Row |
 |---|---|---|
-| CNSSI-cat | The categorisation scheme for national security systems (DoDI ¶3.d, Encl. 6 ¶2.a). | INACCESSIBLE. Fallback: the plan's FIPS 199-style availability statement, if any (N34-3.2.1a). |
+| CNSSI-cat | The categorization scheme for national security systems (DoDI ¶3.d, Encl. 6 ¶2.a). | INACCESSIBLE. Fallback: the plan's FIPS 199-style availability statement, if any (N34-3.2.1a). |
 | CNSSI-base | The security control baselines (DoDI Encl. 6 ¶2.b(2)(a): "Selecting the applicable initial security control baseline from Reference (e) based on the IS categorization"). | INACCESSIBLE. Fallback: Checklist B assessed in full, baseline membership unknown. |
 | CNSSI-ovl | Overlays (DoDI Encl. 6 ¶2.b(2)(b); the cnss.gov listing names attachments for Space Platform, Classified System, Cross Domain Solution, Intelligence and Privacy overlays). | INACCESSIBLE. Fallback: none; state that no overlay was applied and why. |
-| CNSSI-param | DoD-specific assignment values (DoDI ¶3.d places these on the Knowledge Service, not in 1253 itself). | INACCESSIBLE. Fallback: FedRAMP High parameters (Checklist C) as the only public federal parameter set read, labelled as not DoD's. |
+| CNSSI-param | DoD-specific assignment values (DoDI ¶3.d places these on the Knowledge Service, not in 1253 itself). | INACCESSIBLE. Fallback: FedRAMP High parameters (Checklist C) as the only public federal parameter set read, labeled as not DoD's. |
 
 If the repo says anything about CNSSI 1253 beyond existence, title and date, that sentence
 is a finding: `docs/07` currently hedges it as "(listing read; text login-gated)", which is

@@ -34,7 +34,7 @@ For each major EBS process, ask three questions and write the answers down:
 ### 3. Assign tiers (45 min)
 Map each process to Tier 0–3 using §3 of the tier document as the straw model. Expect
 pushback that everything is Tier 0. The counter is §4 and the cost column: Tier 0 for
-everything is roughly the cost of a second production estate.
+everything is roughly the cost of a second production environment.
 
 ### 4. Confront the Exadata floor (30 min)
 Present `docs/05-cost-and-teardown.md` §2 honestly. The database cannot be cheaply tiered;
@@ -64,7 +64,7 @@ Business owner __________  Finance __________  CIO __________  Risk __________  
 
 ## References
 
-This document is a synthesis: every statement about product behaviour or a standard is derived
+This document is a synthesis: every statement about product behavior or a standard is derived
 from the sources below, and any statement that could not be traced to a source is marked as
 unverified. Numbers restart per document. The consolidated index is `docs/references.md`.
 

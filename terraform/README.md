@@ -1,9 +1,9 @@
-# terraform/ — OCI Terraform for the EBS DR estate
+# terraform/ — OCI Terraform for the EBS DR environment
 
 This is a **Tier-C, author-only, never-apply** Terraform configuration for the
 worked example described in the repository root [`README.md`](../README.md)
 and [`docs/01-architecture.md`](../docs/01-architecture.md). It has never
-been applied against a real OCI tenancy — there is no live estate behind it,
+been applied against a real OCI tenancy — there is no live environment behind it,
 no real OCIDs, and no state file in this repository.
 
 If you are building a real plan from this repo, see the root README's
@@ -158,7 +158,7 @@ intentionally minimal:
 
 - **`modules/lb`'s WAF policies** (`oci_waf_web_app_firewall_policy`) are
   created with zero rules — a real, valid, empty policy. Real WAF rule
-  content is business logic specific to the EBS estate and does not belong
+  content is business logic specific to the EBS environment and does not belong
   hard-coded in a public worked example; that emptiness is the "WAF
   placeholder" the brief asked for, expressed through a genuine resource
   rather than an inert stand-in.

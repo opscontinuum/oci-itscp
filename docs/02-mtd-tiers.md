@@ -15,7 +15,7 @@ Most DR plans quote RTO and stop. That under-states EBS recovery badly, because 
 
 NIST SP 800-34 Rev. 1 defines MTD as "the total amount of time the system owner/authorizing official is willing to accept for a mission/business process outage or disruption" (§3.2.1, p. 17) [1], and states that "the RTO must normally be shorter than the MTD" because "additional processing time must be added to the RTO to stay within the time limit established by the MTD" [1]. **NIST does not use the term Work Recovery Time, and it does not state that MTD = RTO + WRT** — the document's own wording is "additional processing time" added to RTO, with no name given to that additional time [1]. **WRT is this plan's name for that additional processing time, and MTD = RTO + WRT is this plan's own decomposition of the NIST relationship, not a definition NIST states.** It is used here because, for an ERP, that additional processing time is substantial and needs its own owner and its own line in the table.
 
-**Everything below is expressed as MTD.** WRT is called out separately because for EBS it is frequently *larger* than RTO, and it is the part no infrastructure investment can shrink *(unverified: engineering judgement; no documentation found in this revision)* — it shrinks only through interface design and rehearsal.
+**Everything below is expressed as MTD.** WRT is called out separately because for EBS it is frequently *larger* than RTO, and it is the part no infrastructure investment can shrink *(unverified: engineering judgment; no documentation found in this revision)* — it shrinks only through interface design and rehearsal.
 
 ---
 
@@ -56,11 +56,11 @@ NIST SP 800-34 Rev. 1 defines MTD as "the total amount of time the system owner/
 | **Windows app tier** | Running; EBS services stopped, drained from **OCI Flexible Load Balancer**; the BI node is always on in every posture | Instances exist, **STOPPED** via **OCI Resource Scheduler**, which stops billed OCPUs on a schedule [9] (BI node excepted) | **OCI Compute Custom Images** + volume group replicas only | Rebuild from **Custom Image** + backup |
 | **Block storage** | **OCI Block Volume — Volume Group Replication**, continuous | **Volume Group Replication**, continuous | **Volume Group Replication** | **OCI Block Volume Backup Policy** — scheduled cross-region backup copy [12] |
 | **File storage** (interface landing directories and file drops only; EBS 12.2 on Windows has no shared application file system, `docs/01` §4.4) | **OCI File Storage — File System Replication**, shortest supported interval (15 min minimum) [13] | **FSS File System Replication** [13] | **FSS File System Replication**, long interval | FSS snapshot exported to Object Storage |
-| **Object storage** | **OCI Object Storage — Replication Policy** [14] | **Object Storage Replication Policy** [14] | **Object Storage Replication Policy** [14] | Lifecycle-managed cross-region copy *(unverified: engineering judgement; no documentation found in this revision — no Object Storage Lifecycle Management cross-region copy feature was found in the sources for this revision)* |
+| **Object storage** | **OCI Object Storage — Replication Policy** [14] | **Object Storage Replication Policy** [14] | **Object Storage Replication Policy** [14] | Lifecycle-managed cross-region copy *(unverified: engineering judgment; no documentation found in this revision — no Object Storage Lifecycle Management cross-region copy feature was found in the sources for this revision)* |
 | **Failover trigger** | **Full Stack DR — Failover plan**, pre-approved [15][16] | **Full Stack DR** plan + change approval [15][16] | **Full Stack DR** plan + manual staging [15][16] | Manual rebuild |
 | **Relative run cost** | ~90–100% of prod | ~45–60% | ~20–30% | ~5–10% |
 
-> Cost percentages are **shape-of-the-answer, not a quote** *(unverified: engineering judgement; no documentation found in this revision)*. They exclude the Exadata infrastructure floor discussed in §4. Model your own in `docs/05-cost-and-teardown.md`.
+> Cost percentages are **shape-of-the-answer, not a quote** *(unverified: engineering judgment; no documentation found in this revision)*. They exclude the Exadata infrastructure floor discussed in §4. Model your own in `docs/05-cost-and-teardown.md`.
 
 ---
 
@@ -84,7 +84,7 @@ This is the part to negotiate with the business. A defensible split:
 Tiering compute is easy: stop the instance, stop paying for OCPUs. **Tiering Exadata is not.** ExaDB-D bills as *infrastructure* (fixed, by rack configuration) plus *OCPUs*. That means:
 
 - There is **no zero-cost standby Exadata.** Oracle states: "With zero cores, you are billed only for the infrastructure until you scale up the system" and "If you terminate the cloud VM cluster and do not terminate the cloud Exadata infrastructure resource, billing will continue for the infrastructure resource" [19].
-- What you *can* do is run the PHX VM cluster at a **minimum OCPU floor** and scale up during failover. Whether the floor keeps redo apply *caught up* through a period-close redo burst while also serving the BI tier is not something any source read for this plan establishes — Oracle recommends symmetric primary and standby resources for apply performance (`scripts/dataguard/tnsnames-tuning.md` §4); measure apply rate at the floor against a captured period-close redo stream before publishing the WARM RPO *(unverified: engineering judgement; no documentation found in this revision)*. OCPU (ECPU on X11M) scaling on ExaDB-D is online, is rolled out to VMs incrementally rather than in parallel, and completes in minutes [8] — this is a real and meaningful lever, and it is the recommended Tier-1 posture.
+- What you *can* do is run the PHX VM cluster at a **minimum OCPU floor** and scale up during failover. Whether the floor keeps redo apply *caught up* through a period-close redo burst while also serving the BI tier is not something any source read for this plan establishes — Oracle recommends symmetric primary and standby resources for apply performance (`scripts/dataguard/tnsnames-tuning.md` §4); measure apply rate at the floor against a captured period-close redo stream before publishing the WARM RPO *(unverified: engineering judgment; no documentation found in this revision)*. OCPU (ECPU on X11M) scaling on ExaDB-D is online, is rolled out to VMs incrementally rather than in parallel, and completes in minutes [8] — this is a real and meaningful lever, and it is the recommended Tier-1 posture.
 - Scaling the standby to **zero** OCPUs "will shut down the VM Cluster and eliminate any billing for that VM Cluster", though the hypervisor still reserves the minimum 2 OCPUs per VM (8 ECPUs per VM on X11M) even while shut down [8]. Zero OCPU also stops redo apply, which converts your Tier 1 into a Tier 3 the moment you do it. Do not do this to save money and then report the old RPO.
 
 **Consequence:** the "database is Tier 3 / restore-from-backup" option only genuinely saves money if you provision **no standby Exadata at all** and accept provisioning one during the disaster — which realistically adds hours and carries capacity risk in a regional event, exactly when Phoenix is busiest. The plan therefore recommends: **keep a standing PHX Exadata standby at minimum OCPU, and tier the *application* stack instead.** That is where the elastic money actually is.
@@ -95,9 +95,9 @@ If budget forces a non-Exadata standby, re-check assumption A5 (HCC) first — i
 
 ## 5. Two honest caveats about these numbers
 
-**Tier 0's 15-minute local RTO holds only because the Ashburn application tier spans two availability domains (`docs/01-architecture.md` §2–§3); the 60-minute cross-region figure is conditional.** It holds only if the EBS logical host names are preserved (`docs/01-architecture.md` §5.1). Without that, add **~3–5 hours** for `FND_CONC_CLONE.SETUP_CLEAN` plus AutoConfig across all tiers *(unverified: engineering judgement; no documentation found in this revision — see `docs/01-architecture.md` §5.1 for the documented Oracle sequence this estimate is built on)*, and Tier 0 becomes a Tier 1 in practice.
+**Tier 0's 15-minute local RTO holds only because the Ashburn application tier spans two availability domains (`docs/01-architecture.md` §2–§3); the 60-minute cross-region figure is conditional.** It holds only if the EBS logical host names are preserved (`docs/01-architecture.md` §5.1). Without that, add **~3–5 hours** for `FND_CONC_CLONE.SETUP_CLEAN` plus AutoConfig across all tiers *(unverified: engineering judgment; no documentation found in this revision — see `docs/01-architecture.md` §5.1 for the documented Oracle sequence this estimate is built on)*, and Tier 0 becomes a Tier 1 in practice.
 
-**WRT estimates are the least reliable figures on this page** *(unverified: engineering judgement; no documentation found in this revision)* until you have run a full drill with the functional team. They are seeded from typical EBS recovery patterns, not from your instance. After the first drill (RB-04), replace them with measured values and re-derive MTD. Treat the current MTD column as a *design target*, not a commitment to the business, until that measurement exists.
+**WRT estimates are the least reliable figures on this page** *(unverified: engineering judgment; no documentation found in this revision)* until you have run a full drill with the functional team. They are seeded from typical EBS recovery patterns, not from your instance. After the first drill (RB-04), replace them with measured values and re-derive MTD. Treat the current MTD column as a *design target*, not a commitment to the business, until that measurement exists.
 
 ---
 
@@ -118,7 +118,7 @@ The single highest-leverage change on this table is the interface pattern: **fil
 
 ## References
 
-This document is a synthesis: every statement about product behaviour or a standard is derived
+This document is a synthesis: every statement about product behavior or a standard is derived
 from the sources below, and any statement that could not be traced to a source is marked as
 unverified. Numbers restart per document. The consolidated index is `docs/references.md`.
 
@@ -160,7 +160,7 @@ unverified. Numbers restart per document. The consolidated index is `docs/refere
 
 ### Unverified statements
 
-The following statements are engineering judgement with no supporting documentation found in this revision:
+The following statements are engineering judgment with no supporting documentation found in this revision:
 
 - WRT is often larger than RTO for an ERP and no infrastructure spend shrinks it (§1).
 - Cost percentages describe the shape of the answer, not a quote (§2).

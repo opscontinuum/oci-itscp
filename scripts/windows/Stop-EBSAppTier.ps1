@@ -21,7 +21,7 @@
 
     Stopping the web tier before the Concurrent Managers strands running requests.
     Stale FND_CONCURRENT_QUEUES / ICM rows on the far side are the usual result
-    (engineering judgement; see the cmclean applicability note in scripts/ebs/README.md).
+    (engineering judgment; see the cmclean applicability note in scripts/ebs/README.md).
 
 .PARAMETER GraceSeconds
     How long to wait for in-flight concurrent requests before escalating.

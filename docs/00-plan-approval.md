@@ -47,7 +47,7 @@ So, four things, and a signature block:
    for Tier 0), and the statement should cite the cadence the plan actually commits to.
 3. **Owned** — a designated authority is responsible for continued maintenance *and* testing.
 4. **Under version control** — the plan is modified as changes occur, and stays under version
-   control in accordance with the organisation's contingency planning policy.
+   control in accordance with the organization's contingency planning policy.
 
 The template below adapts NIST's sample language to this plan. It is deliberately specific
 about *which* test counts: a Level 1 component test does not demonstrate the plan; a
@@ -67,7 +67,7 @@ at what level is not worth the signature.
 > as deployed on **{approval date}**.
 >
 > I further certify that the plan identifies the criticality of the system to
-> **{organisation name}** through the tier assignments agreed at the tier-assignment
+> **{organization name}** through the tier assignments agreed at the tier-assignment
 > workshop held on **{workshop date}**, and that the recovery strategies it describes provide
 > the ability to recover the system within the MTD of each tier in a manner consistent with
 > that criticality and its cost.
@@ -83,7 +83,7 @@ at what level is not worth the signature.
 > I accept responsibility for the continued maintenance and testing of this plan. It will be
 > modified as changes occur, will remain under version control in this repository, and will
 > be re-approved on any of the triggers listed below, in accordance with
-> **{organisation name}**'s contingency planning policy.
+> **{organization name}**'s contingency planning policy.
 
 **Re-approval triggers** — re-sign, do not just re-date:
 
@@ -91,7 +91,7 @@ at what level is not worth the signature.
 - Any **[MATERIAL]** assumption in `docs/01-architecture.md` §1 changes.
 - Any tier assignment changes (`docs/02-mtd-tiers.md` §3).
 - A Level 2 drill fails to meet a tier's MTD and the finding is closed by changing the plan
-  rather than the estate.
+  rather than the environment.
 - After a real invocation of RB-02 and the subsequent RB-03 failback.
 - The designated authority changes. Approval does not transfer with the job title.
 
@@ -132,7 +132,7 @@ of the warning at the top.
 
 ## References
 
-This document is a synthesis: every statement about product behaviour or a standard is derived
+This document is a synthesis: every statement about product behavior or a standard is derived
 from the sources below, and any statement that could not be traced to a source is marked as
 unverified. Numbers restart per document. The consolidated index is `docs/references.md`.
 
@@ -161,6 +161,6 @@ unverified. Numbers restart per document. The consolidated index is `docs/refere
 - The choice of additional signatories (business owner, CIO, risk) mirrors the sign-off
   lines already used in `checklists/` and is not prescribed by NIST, which requires only
   the designated authority's signature and leaves "other applicable approving signatures"
-  to the organisation [1].
+  to the organization [1].
 
 [1]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-34r1.pdf "NIST SP 800-34 Rev. 1 — Contingency Planning Guide for Federal Information Systems"

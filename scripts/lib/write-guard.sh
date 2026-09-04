@@ -7,7 +7,7 @@
 #
 # Source this file and call the OCI CLI ONLY through wg_oci(). The guard splits
 # the command into its positional path (everything before the first flag),
-# classifies it, and refuses anything it does not recognise.
+# classifies it, and refuses anything it does not recognize.
 #
 #   source "$(dirname "$0")/../lib/write-guard.sh"
 #   wg_oci bv volume-group-replica get --volume-group-replica-id "$R"   # read, runs
@@ -37,7 +37,7 @@ set -o pipefail
 # ---------------------------------------------------------------------------
 # An OCI operation is a read if and only if its verb begins with "list" or
 # "get" — list, list-replication-policies, get, get-replication-policy. Reads
-# need no authorisation: nothing in this repository is protected by hiding it.
+# need no authorization: nothing in this repository is protected by hiding it.
 readonly WG_READ_PATTERN='^(list|get)(-[a-z0-9-]+)?$'
 
 # Reads whose verb does not fit that shape. Each one is a POST that returns data
@@ -306,7 +306,7 @@ wg_self_test() {
     fi
   }
 
-  printf '  reads need no authorisation\n'
+  printf '  reads need no authorization\n'
   wg_authorise 0 ""
   _wg_expect 0 'allow read' -- bv volume-group-replica get --volume-group-replica-id ocid1.test
   _wg_expect 0 'allow read' -- fs replication get --replication-id ocid1.test
@@ -341,7 +341,7 @@ wg_self_test() {
   _wg_expect 0 'allow confirmed' -- disaster-recovery dr-protection-group disassociate --type DEFAULT
   _wg_expect 0 'allow confirmed' -- lb load-balancer delete --load-balancer-id ocid1.test
 
-  printf '\n  operations outside the allowlist are refused even fully authorised\n'
+  printf '\n  operations outside the allowlist are refused even fully authorized\n'
   _wg_expect 3 'refuse novel' -- db autonomous-database delete --autonomous-database-id ocid1.test
   _wg_expect 3 'refuse novel' -- recovery protected-database delete --protected-database-id ocid1.test
   _wg_expect 3 'refuse novel' -- os bucket delete --bucket-name b

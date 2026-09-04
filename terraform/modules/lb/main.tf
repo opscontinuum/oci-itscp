@@ -12,7 +12,7 @@
 # oci_waf_web_app_firewall_policy (real, current resources — NOT a
 # null_resource placeholder; the "WAF placeholder" nature is that the
 # policy below is intentionally empty of rules, since real WAF rules
-# are estate-specific business logic).
+# are environment-specific business logic).
 # https://registry.terraform.io/providers/oracle/oci/latest/docs/resources/load_balancer_load_balancer
 # https://registry.terraform.io/providers/oracle/oci/latest/docs/resources/waf_web_app_firewall_policy
 ####################################################################
@@ -131,7 +131,7 @@ resource "oci_load_balancer_listener" "phoenix" {
 # ---------------------------------------------------------------------------
 # WAF — empty/minimal policies attached to each region's LB. The absence of
 # rules is the deliberate "placeholder": real WAF rule content is business
-# logic specific to the EBS estate and does not belong hard-coded in a
+# logic specific to the EBS environment and does not belong hard-coded in a
 # public worked example.
 # ---------------------------------------------------------------------------
 

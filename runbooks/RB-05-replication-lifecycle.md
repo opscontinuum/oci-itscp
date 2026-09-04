@@ -8,7 +8,7 @@ Covers the four lifecycle operations: **initial build**, **posture change** (the
 
 ## 1. The four postures
 
-The whole DR estate runs in one of four named postures, switched with a single script or a Terraform variable.
+The whole DR environment runs in one of four named postures, switched with a single script or a Terraform variable.
 
 ```mermaid
 stateDiagram-v2
@@ -71,10 +71,10 @@ Order is load-bearing. Each phase depends on the previous one.
 - [ ] Configure **Oracle Data Guard Broker** — Oracle's EBS guidance recommends it to simplify Data Guard administration [5] — set protection modes (Maximum Availability = SYNC, Maximum Performance = ASYNC) per `docs/01-architecture.md` §3 [6]
 - [ ] Set `NetTimeout` explicitly on the `EBSPROD_IAD2` (local, SYNC) leg — Oracle recommends `NetTimeout` always be set with synchronous transport, "so that the maximum duration of a redo source database stall caused by a redo transport fault can be precisely controlled" [20]; size it low (single-digit seconds is the MAA guidance for a same-region path) and measure, do not guess. Set `FastStartFailoverThreshold` per the HA guide's worked formula for the primary topology [9]. Both are what turn "configuration UNSYNCHRONIZED" from a silent RPO failure into an alarm (`docs/04-monitoring.md` §2).
 - [ ] Apply redo transport tuning (`scripts/dataguard/tnsnames-tuning.md`) — **do this before** measuring lag, or you will size the network from bad data
-- [ ] Enable **Oracle Active Data Guard** real-time apply — real-time query, automatic block repair and the other ADG features require an Active Data Guard licence [7]; on Base Database Service, ADG requires Enterprise Edition Extreme Performance [8]
+- [ ] Enable **Oracle Active Data Guard** real-time apply — real-time query, automatic block repair and the other ADG features require an Active Data Guard license [7]; on Base Database Service, ADG requires Enterprise Edition Extreme Performance [8]
 - [ ] Deploy the **FSFO Observer** in Ashburn AD-3, targeting the local standby only — as a best practice the observer should be at a third site or, failing that, co-located with the standby rather than the primary or application tier [9]
 - [ ] Register **Oracle Database Autonomous Recovery Service**, enabled on whichever database is primary. Automatic backup on a standby-role database is possible in principle [10], but only while the *primary's* backup destination is Object Storage — a primary cannot move its own backup destination to Recovery Service while the standby also has automatic backup enabled [21]. In practice this means **one active Recovery Service subscription at a time**, following the primary through every role change; backups replicate across availability domains within that region and can be restored to any region [11]. There is no cross-region backup-copy feature — the documented pattern for cross-region protection is Data Guard between regions plus a local Recovery Service protecting whichever database is primary there [12]. Enable real-time redo transport — an extra-cost option [11] — and retention lock (minimum 14-day delay before the retention period locks permanently, maximum 95-day retention) [13] on the active subscription.
-- [ ] **Schedule a customer-run RMAN backup of the standby to an Object Storage bucket.** This is the region's independent copy while its database is standby and therefore ineligible for Recovery Service — Active Data Guard permits offloading work, including backups, to an open read-only standby [5]. Set a bucket retention rule for it *(unverified: engineering judgement — a specific retention duration was not sourced in this revision)*. Alternative (a), if the operational overhead of a customer-run RMAN job is unwanted: back up **both** primary and standby to Object Storage with cross-region copy, accepting the loss of real-time redo and retention lock that Recovery Service provides — state explicitly which trade-off was chosen and why.
+- [ ] **Schedule a customer-run RMAN backup of the standby to an Object Storage bucket.** This is the region's independent copy while its database is standby and therefore ineligible for Recovery Service — Active Data Guard permits offloading work, including backups, to an open read-only standby [5]. Set a bucket retention rule for it *(unverified: engineering judgment — a specific retention duration was not sourced in this revision)*. Alternative (a), if the operational overhead of a customer-run RMAN job is unwanted: back up **both** primary and standby to Object Storage with cross-region copy, accepting the loss of real-time redo and retention lock that Recovery Service provides — state explicitly which trade-off was chosen and why.
 
 ### Phase 3 — Storage replication (start early — baselines are long)
 - [ ] **Volume model — decide what is replicated and what is not, before creating anything.** Phoenix (and every AD-2) non-moving instance boots from its **own, unreplicated boot volume** (OS, Oracle Cloud Agent, JRE/Forms client) — replicating an Ashburn boot volume into Phoenix buys nothing for a pre-provisioned instance and only creates a second copy of a SID and machine identity nobody wants running. The **EBS application file system (`fs1`/`fs2`/`fs_ne`) and `$APPLCSF` live on data volumes**, and those data volumes are what go into the replicated Volume Group.
@@ -129,7 +129,7 @@ Order is load-bearing. Each phase depends on the previous one.
 | Delete **FSS File System Replication** | Same, plus it destroys the replication relationship. |
 | Delete **Object Storage Replication Policy** | A new policy replicates only objects uploaded after it is created; everything already in the bucket must be bulk-copied first, and a deleted policy cannot be recovered [16]. |
 | Scale ExaDB-D to **0 OCPU** | Setting OCPU to zero shuts down the entire VM Cluster and stops billing for it, not just redo apply — the hypervisor still reserves the minimum 2 OCPU per VM (8 ECPU per VM on X11M), unusable by any other VM, even while shut down [29]. Silently converts Tier 1 into Tier 3 while the documentation still claims 5-minute RPO. |
-| Terminate stopped instances | Destroys the pilot light; rebuild moves RTO from minutes to hours *(unverified: engineering judgement; no documentation found in this revision)*. |
+| Terminate stopped instances | Destroys the pilot light; rebuild moves RTO from minutes to hours *(unverified: engineering judgment; no documentation found in this revision)*. |
 
 `set-dr-posture.sh` refuses these outright. If someone genuinely needs to destroy replication, that is §5 (decommission) and it requires explicit sign-off.
 
@@ -156,7 +156,7 @@ This is the only place in the plan where "spin up and tear down" is genuinely fr
 
 Only for retiring the DR site or the application. **Requires written sign-off from the business owner and the risk function** — you are deliberately removing protection.
 
-Order matters: destroy orchestration first so nothing tries to fail over into a half-dismantled estate.
+Order matters: destroy orchestration first so nothing tries to fail over into a half-dismantled environment.
 
 ```bash
 ./scripts/oci/decommission-dr.sh --confirm-unprotected --approver "<name>" --ticket "<change-ref>"
@@ -176,7 +176,7 @@ The script logs every step with the approver and change reference for audit.
 
 ## References
 
-This document is a synthesis: every statement about product behaviour or a standard is derived
+This document is a synthesis: every statement about product behavior or a standard is derived
 from the sources below, and any statement that could not be traced to a source is marked as
 unverified. Numbers restart per document. The consolidated index is `docs/references.md`.
 
@@ -216,8 +216,8 @@ unverified. Numbers restart per document. The consolidated index is `docs/refere
 ### Unverified statements
 
 - §1: WARM is ~45–60% of production cost — engineering estimate, `docs/02-mtd-tiers.md` §2.
-- §2 Phase 2: a customer-scheduled RMAN backup bucket needs a retention rule — engineering judgement; no specific retention duration sourced in this revision.
-- §3: rebuilding a terminated instance moves RTO from minutes to hours — engineering judgement.
+- §2 Phase 2: a customer-scheduled RMAN backup bucket needs a retention rule — engineering judgment; no specific retention duration sourced in this revision.
+- §3: rebuilding a terminated instance moves RTO from minutes to hours — engineering judgment.
 - §3: WARM versus HOT saving of ~45–60% to ~90–100% of production cost — engineering estimate, not from a fetched source.
 
 [1]: https://docs.oracle.com/en/solutions/fmw-stretched-clusters/set-fmw-stretched-clusters1.html "Set Up FMW Stretched Clusters — Oracle"

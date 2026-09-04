@@ -165,7 +165,7 @@ data "oci_database_databases" "ashburn" {
 # subnet than the primary was NOT confirmed in this revision. This is
 # exactly the gap docs/01-architecture.md A2 designs around by requiring
 # ExaDB-D (whose cross-region standby path is the proven one, docs/01 §3)
-# for the real estate. Validate against the OCI Database API reference and
+# for the real environment. Validate against the OCI Database API reference and
 # a real tenancy before relying on cross-region basedb Data Guard.
 resource "oci_database_data_guard_association" "phoenix" {
   provider                         = oci.ashburn

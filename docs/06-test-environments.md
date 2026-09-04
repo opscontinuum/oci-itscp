@@ -9,9 +9,9 @@ prove. **A green test suite must not be allowed to imply more than it demonstrat
 
 | Tier | Substrate | Cost | Proves | Cannot prove |
 |---|---|---|---|---|
-| **A** — mocked unit tests | GitHub Actions, bats, Pester, `terraform test` with mock providers | $0 | Script guard rails, argument construction, drill-isolation abort logic, Terraform plan logic | Anything about Oracle, OCI or EBS behaviour |
-| **B** — Data Guard rig | Containers on Rancher Desktop, or VMs on a Harvester cluster, with injected WAN latency | $0 cloud; local hardware and Oracle developer licences | Data Guard protection-mode behaviour under latency, Broker runbook sequences, snapshot-standby drill cycle, transport-tuning maths, and (Harvester variant) an EBS application tier on Windows | Exadata behaviour, OCI service mechanics, Work Recovery Time |
-| **C** — cheap OCI estate | Terraform, Base Database Service instead of Exadata, apply-locked | Real spend when unlocked | Full Stack DR plans parse, precheck and execute; OCI replication mechanics; the scripts against real APIs | Exadata behaviour, real EBS, Work Recovery Time, failback baseline durations |
+| **A** — mocked unit tests | GitHub Actions, bats, Pester, `terraform test` with mock providers | $0 | Script guard rails, argument construction, drill-isolation abort logic, Terraform plan logic | Anything about Oracle, OCI or EBS behavior |
+| **B** — Data Guard rig | Containers on Rancher Desktop, or VMs on a Harvester cluster, with injected WAN latency | $0 cloud; local hardware and Oracle developer licenses | Data Guard protection-mode behavior under latency, Broker runbook sequences, snapshot-standby drill cycle, transport-tuning maths, and (Harvester variant) an EBS application tier on Windows | Exadata behavior, OCI service mechanics, Work Recovery Time |
+| **C** — cheap OCI environment | Terraform, Base Database Service instead of Exadata, apply-locked | Real spend when unlocked | Full Stack DR plans parse, precheck and execute; OCI replication mechanics; the scripts against real APIs | Exadata behavior, real EBS, Work Recovery Time, failback baseline durations |
 
 ---
 
@@ -67,7 +67,7 @@ returns `AVAILABLE` proves the script's logic, not the API's.
    Flashback, snapshot-standby conversion and return with queued redo applied [4].
 3. **The transport-tuning maths** in `scripts/dataguard/tnsnames-tuning.md`: socket buffers at
    three times the bandwidth-delay product [1] versus defaults, at the injected latency.
-4. **NET_TIMEOUT behaviour**: what a synchronous standby outage does to commits for the
+4. **NET_TIMEOUT behavior**: what a synchronous standby outage does to commits for the
    configured timeout, and that the configuration reports unsynchronized afterwards [1][5].
 
 ### 2.2 Substrate options
@@ -77,13 +77,13 @@ returns `AVAILABLE` proves the script's logic, not the API's.
 | **B1 — containers** on Rancher Desktop (`docker compose`) | A workstation with 62 GB RAM | Three Oracle Database 19c Enterprise Edition containers (primary, SYNC standby standing in for Ashburn AD-2, ASYNC standby standing in for Phoenix) on one user-defined bridge network | `tc qdisc add dev eth0 root netem delay 65ms 5ms` inside the Phoenix container, which needs the `NET_ADMIN` capability; the delay is a swept variable | Database only. No application tier. |
 | **B2 — VMs** on a Harvester cluster (KubeVirt) | A lab cluster with 96 GB or more | The same three database VMs, plus a Linux EBS 12.2 application tier from Oracle's Vision demo appliance, plus Windows application-tier VMs built with Ansible over WinRM to exercise the PowerShell scripts | `netem` on the virtual network between the "Ashburn" and "Phoenix" VM networks, or on the Phoenix VMs' interfaces | The only option that runs EBS. |
 
-**Image and licence points that need the user, not the rig.** Oracle's 19c Enterprise Edition
+**Image and license points that need the user, not the rig.** Oracle's 19c Enterprise Edition
 container image and the EBS Vision appliance both require an Oracle account, acceptance of
-licence terms, and an authenticated pull or download; the plan's automation never handles those
+license terms, and an authenticated pull or download; the plan's automation never handles those
 credentials. Oracle Database Express Edition is not a substitute: it is not listed with the
 Data Guard features in the licensing table used by this plan [6], and a rig that cannot run
 Data Guard proves nothing this tier exists to prove. Enterprise Edition and the EBS appliance
-under developer licence terms are a position the user confirms, not one this plan asserts.
+under developer license terms are a position the user confirms, not one this plan asserts.
 
 **Sizing (planning estimate, not verified against Oracle's published minimums in this
 revision).** Three 19c database VMs at about 8 GB each, one Linux EBS application-tier VM at
@@ -99,7 +99,7 @@ revision).** Three 19c database VMs at about 8 GB each, one Linux EBS applicatio
 - **OCI services.** Volume group replication and activation, File Storage replication and its
   full base copy, Object Storage replication policies, Full Stack DR plans, Run Command,
   Traffic Management. None of these exist in the rig; Tier C is where they are tested.
-- **Real EBS behaviour (B1), and most of it in B2.** `adop` cycles, `FND_NODES` and
+- **Real EBS behavior (B1), and most of it in B2.** `adop` cycles, `FND_NODES` and
   AutoConfig, the concurrent-manager recovery path, Workflow, XML Gateway, Payments, and the
   isolation controls that keep a drill from transmitting. B2 exercises the start/stop scripts
   and the logical-host-name pattern against a Vision instance; it does not reproduce a
@@ -126,9 +126,9 @@ plan says, that the scripts' OCI calls are correct against real APIs, and that B
 Service Active Data Guard needs Enterprise Edition Extreme Performance [6][7]. Data Guard
 between two Base Database systems stands in for Exadata.
 
-**What Tier C cannot prove.** Exadata behaviour (it is deliberately absent); real EBS (no EBS
-runs on the cheap estate); Work Recovery Time; and failback baseline durations at production
-data volumes, because the smoke estate holds a few hundred gigabytes.
+**What Tier C cannot prove.** Exadata behavior (it is deliberately absent); real EBS (no EBS
+runs on the cheap environment); Work Recovery Time; and failback baseline durations at production
+data volumes, because the smoke environment holds a few hundred gigabytes.
 
 ---
 
@@ -138,7 +138,7 @@ data volumes, because the smoke estate holds a few hundred gigabytes.
 |---|---|---|
 | Tier A green | The scripts and Terraform behave as designed | The design works |
 | Tier B green | The Data Guard design behaves as designed at the injected latency; the Broker runbook steps are in the right order | The RTO or RPO targets are met; the WARM floor keeps up on Exadata |
-| Tier C green | The OCI orchestration and replication mechanics work on a small estate | The production estate will fail over in 60 minutes |
+| Tier C green | The OCI orchestration and replication mechanics work on a small environment | The production environment will fail over in 60 minutes |
 | A Level 2 drill with Finance (RB-04) | The measured RTO and WRT are these numbers | — |
 
 Only the last row produces the numbers that `docs/02-mtd-tiers.md` is allowed to publish.
@@ -147,7 +147,7 @@ Only the last row produces the numbers that `docs/02-mtd-tiers.md` is allowed to
 
 ## References
 
-This document is a synthesis: every statement about product behaviour or a standard is derived
+This document is a synthesis: every statement about product behavior or a standard is derived
 from the sources below, and any statement that could not be traced to a source is marked as
 unverified. Numbers restart per document. The consolidated index is `docs/references.md`.
 
@@ -184,7 +184,7 @@ unverified. Numbers restart per document. The consolidated index is `docs/refere
 ### Unverified statements
 
 - The `tc netem` and KubeVirt/Harvester mechanics, and the RAM sizing in §2.2, are engineering
-  judgement; no vendor documentation for them was read in this revision.
+  judgment; no vendor documentation for them was read in this revision.
 - That Oracle Database Express Edition lacks Data Guard is inferred from its absence in the
   licensing table's Data Guard rows, not from an explicit statement.
 

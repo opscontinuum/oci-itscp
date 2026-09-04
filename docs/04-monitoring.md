@@ -1,6 +1,6 @@
 # 04 — Monitoring, Alerting, and RPO Attestation
 
-A DR estate that is not monitored is not a DR estate — it is an assumption. This section defines what must be watched, what the thresholds are, and how you prove RPO compliance to an auditor.
+A DR environment that is not monitored is not a DR environment — it is an assumption. This section defines what must be watched, what the thresholds are, and how you prove RPO compliance to an auditor.
 
 ---
 
@@ -16,7 +16,7 @@ These are the failure modes that do not announce themselves. Each has an alarm b
 | **FSS File System Replication** interval missed repeatedly | Files hours or days stale | Recovery-point-delta alarm — `ReplicationRecoveryPointAge` [3] |
 | **Oracle Cloud Agent Run Command plugin** stopped on a Windows node | Every Full Stack DR user-defined step fails mid-plan | Plugin health check [4] |
 | **Autonomous Recovery Service** protection not yet enabled on the new primary after a role change *(operational consequence; the release note documents only that backups are disabled on the new standby / new Disabled Standby)* [5] | No backups are being taken on the region that is now primary until someone completes the manual re-enable step (`docs/05-cost-and-teardown.md` §4) | Protected-database status check [10] |
-| Fast Recovery Area filling | Apply stalls; drills fail | FRA utilisation alarm *(unverified: engineering judgement; no documentation found in this revision)* |
+| Fast Recovery Area filling | Apply stalls; drills fail | FRA utilisation alarm *(unverified: engineering judgment; no documentation found in this revision)* |
 | Phoenix ExaDB-D scaled to 0 OCPU by a cost-cutting change | Redo apply stopped; Tier 1 silently became Tier 3 — scaling to 0 OCPU shuts the VM cluster down [6] | OCPU floor alarm — `OcpusAllocated` metric [7] |
 | Configuration drift between regions | Failover succeeds, application misbehaves | Weekly drift report |
 
@@ -41,7 +41,7 @@ how much data is at risk.
 | DG apply lag (IAD2, SYNC leg) | `oracle_oci_database` / `oracle_dataguard` — `ApplyLag` [1] | any lag | > 60 s | DBA on-call, page |
 | DG configuration status | Broker `show configuration` (`dgmgrl`) | WARNING | ERROR | DBA on-call, page |
 | DG configuration UNSYNCHRONIZED (fast-start failover not possible) [16] | Broker `show configuration` synchronized state | any | UNSYNCHRONIZED | DBA on-call, page |
-| DG apply lag rising while transport lag stays flat (apply bottleneck signature) [14] | derived from `ApplyLag` and `TransportLag` [1] | sustained 10 min *(unverified: engineering judgement — threshold, not the signature itself)* | sustained 30 min *(unverified: engineering judgement)* | DBA on-call |
+| DG apply lag rising while transport lag stays flat (apply bottleneck signature) [14] | derived from `ApplyLag` and `TransportLag` [1] | sustained 10 min *(unverified: engineering judgment — threshold, not the signature itself)* | sustained 30 min *(unverified: engineering judgment)* | DBA on-call |
 | Volume group replica age | `oci_blockstore` — `VolumeReplicationSecondsSinceLastSync` [2] | > 30 min | > 2 hr | Infra on-call |
 | FSS recovery point delta | `oci_filestorage` — `ReplicationRecoveryPointAge` [3] | > 1.5× interval | > 3× interval | Infra on-call |
 | Object Storage replication backlog | **No Monitoring metric exists** [8] — poll `oci os replication get-replication-policy` status [9] | any non-ACTIVE | sustained non-ACTIVE | Infra on-call |
@@ -132,7 +132,7 @@ Drift is the quiet killer: everything is green, replication is healthy, and the 
 
 ## References
 
-This document is a synthesis: every statement about product behaviour or a standard is derived
+This document is a synthesis: every statement about product behavior or a standard is derived
 from the sources below, and any statement that could not be traced to a source is marked as
 unverified. Numbers restart per document. The consolidated index is `docs/references.md`.
 
@@ -174,7 +174,7 @@ unverified. Numbers restart per document. The consolidated index is `docs/refere
 - The 10-minute / 30-minute thresholds for the "apply lag rising while transport lag flat"
   alarm are an engineering estimate; the HA guide documents the bottleneck signature, not a
   specific threshold (§2).
-- The FRA utilisation alarm thresholds (75% / 85%) are engineering judgement; no Oracle
+- The FRA utilisation alarm thresholds (75% / 85%) are engineering judgment; no Oracle
   documentation consulted for this revision specifies them (§1, §2).
 
 [1]: https://docs.oracle.com/en-us/iaas/database-management/doc/oracle-cloud-database-metrics.html "Oracle Cloud Database Metrics — Database Management"

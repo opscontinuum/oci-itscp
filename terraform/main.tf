@@ -46,7 +46,7 @@ check "apply_lock_posture" {
 }
 
 # ---------------------------------------------------------------------------
-# Node topology — the estate's physical/logical host name map (docs/01 §2,
+# Node topology — the environment's physical/logical host name map (docs/01 §2,
 # §5.1). Physical names are unique per region+AD; logical names are the
 # same in both regions and resolved region-locally via modules/network's
 # private DNS views.

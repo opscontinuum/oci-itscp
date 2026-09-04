@@ -58,7 +58,7 @@ REFUSED: '${action}' requires --confirm.
 This is a ONE-WAY DOOR. Completing it destroys the replication relationship.
 Re-establishing replication afterwards performs a FULL BASELINE COPY, not an
 incremental resync — hours to days depending on data volume, during which the
-estate is unprotected in that direction.
+environment is unprotected in that direction.
 
 Only proceed if you are executing RB-02 (unplanned failover) or RB-01
 (planned switchover) under an approved change.

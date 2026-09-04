@@ -1,6 +1,6 @@
 # RB-02 — Unplanned Failover: Ashburn → Phoenix
 
-**Type:** Unplanned, data loss possible. **Expected duration:** target ≤ 60 min to Tier-0 technical availability (the Tier 0 cross-region RTO, `docs/02-mtd-tiers.md` §2); rehearsed range 60–120 min until drills prove otherwise, and any drill above 60 min is a tier finding *(unverified: engineering judgement; no documentation found in this revision)*.
+**Type:** Unplanned, data loss possible. **Expected duration:** target ≤ 60 min to Tier-0 technical availability (the Tier 0 cross-region RTO, `docs/02-mtd-tiers.md` §2); rehearsed range 60–120 min until drills prove otherwise, and any drill above 60 min is a tier finding *(unverified: engineering judgment; no documentation found in this revision)*.
 **Authority to invoke:** DR Commander, per the delegation in `checklists/dr-authority-matrix.md`. Do not wait for full CAB.
 
 > **This is a one-way door.** A Full Stack DR failover plan brings up the standby region without attempting to shut down the primary [1], and afterwards the old primary shows a Disabled Standby role [2]. With **Oracle Flashback Database** enabled beforehand, the Broker can reinstate it as a viable standby for the new primary [3]; without Flashback, rebuilding it is instead a full `RMAN DUPLICATE TARGET DATABASE FOR STANDBY FROM ACTIVE DATABASE` [22]. Confirm Flashback is on *now*, not during the incident.
@@ -99,7 +99,7 @@ DGMGRL> failover to EBSPROD_PHX;
 DGMGRL> show configuration;
 ```
 
-**The `force` disable is mandatory, and it must come first.** While fast-start failover is enabled, a manual failover can only be issued to the current FSFO target [3] — and while connected to Phoenix with Ashburn gone, disabling FSFO the normal way is not possible either. `FORCE` is documented for exactly this case: "Use `DISABLE FAST_START FAILOVER` with the `FORCE` option when the network between the primary and target standby databases is disconnected or when the database upon which the command is received does not have a connection with the primary database" [23]. The DGMGRL command-line scenarios for role transitions, including failover, are documented in the Broker guide [5]. If the Broker cannot reach the old primary it will complete the failover anyway — expected in a regional loss *(unverified: engineering judgement; no documentation found in this revision)*.
+**The `force` disable is mandatory, and it must come first.** While fast-start failover is enabled, a manual failover can only be issued to the current FSFO target [3] — and while connected to Phoenix with Ashburn gone, disabling FSFO the normal way is not possible either. `FORCE` is documented for exactly this case: "Use `DISABLE FAST_START FAILOVER` with the `FORCE` option when the network between the primary and target standby databases is disconnected or when the database upon which the command is received does not have a connection with the primary database" [23]. The DGMGRL command-line scenarios for role transitions, including failover, are documented in the Broker guide [5]. If the Broker cannot reach the old primary it will complete the failover anyway — expected in a regional loss *(unverified: engineering judgment; no documentation found in this revision)*.
 
 **Record the reported transport lag / last received redo sequence at capture time (§1) — that is your data-loss bound, not the apply point.** A complete failover applies all redo that was successfully received before changing the role [3], so the apply point converges on whatever arrived; what never arrived is the loss, and that is measured by transport lag, not apply lag.
 
@@ -171,7 +171,7 @@ adop phase=fs_clone      # re-synchronise the patch filesystem from the run file
 EXEC FND_CONC_CLONE.SETUP_CLEAN;
 COMMIT;
 ```
-Then AutoConfig on the DB tier, then on **every** app tier node. Oracle's documented sequence is: clean out `FND_NODES` with `fnd_conc_clone.setup_clean`, run AutoConfig on the database node(s), then AutoConfig on the middle tier for both run and patch file systems [15]. **Adds 3–5 hours** *(unverified: engineering judgement; no documentation found in this revision)*. Escalate the MTD breach to the business immediately — do not absorb it silently.
+Then AutoConfig on the DB tier, then on **every** app tier node. Oracle's documented sequence is: clean out `FND_NODES` with `fnd_conc_clone.setup_clean`, run AutoConfig on the database node(s), then AutoConfig on the middle tier for both run and patch file systems [15]. **Adds 3–5 hours** *(unverified: engineering judgment; no documentation found in this revision)*. Escalate the MTD breach to the business immediately — do not absorb it silently.
 
 ### 7c. Volume group replica is corrupt or too stale
 
@@ -191,7 +191,7 @@ Then AutoConfig on the DB tier, then on **every** app tier node. Oracle's docume
 
 ## References
 
-This document is a synthesis: every statement about product behaviour or a standard is derived
+This document is a synthesis: every statement about product behavior or a standard is derived
 from the sources below, and any statement that could not be traced to a source is marked as
 unverified. Numbers restart per document. The consolidated index is `docs/references.md`.
 

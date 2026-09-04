@@ -14,7 +14,7 @@ variable "freeform_tags" {
 
 variable "object_storage_namespace" {
   type        = string
-  description = "Tenancy's Object Storage namespace. Estate-specific — no meaningful default."
+  description = "Tenancy's Object Storage namespace. Environment-specific — no meaningful default."
   default     = ""
 }
 

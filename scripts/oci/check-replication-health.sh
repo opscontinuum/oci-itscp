@@ -176,7 +176,7 @@ done
 
 echo
 echo "=== Summary ==="
-if   [[ $CRIT -eq 1 ]]; then echo "RESULT: CRITICAL -- do not consider the DR estate ready."; exit 2
+if   [[ $CRIT -eq 1 ]]; then echo "RESULT: CRITICAL -- do not consider the DR environment ready."; exit 2
 elif [[ $WARN -eq 1 ]]; then echo "RESULT: WARNINGS -- investigate before the next drill."; exit 1
 else                         echo "RESULT: ALL GREEN"; exit 0
 fi

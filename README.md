@@ -5,7 +5,7 @@
 > ### ⚠️ This is an example repository
 >
 > It documents a **hypothetical corporation's** DR plan. There is no real infrastructure
-> behind it, no real OCIDs, no real hostnames, and no live estate. Every identifier is a
+> behind it, no real OCIDs, no real hostnames, and no live environment. Every identifier is a
 > placeholder.
 >
 > It exists to be a **complete, honest reference implementation** — architecture, tiered
@@ -39,10 +39,10 @@ definitions; sample evidence artifacts and the test tiers in `docs/06` are still
 
 ## How to use this repo
 
-This plan is a synthesis, not original work: every statement about product behaviour or a
+This plan is a synthesis, not original work: every statement about product behavior or a
 standard carries a marker such as [1] linking to the source it was derived from, and any
 statement that could not be traced to a source is marked as unverified engineering
-judgement. The consolidated index is `docs/references.md`; the per-citation audit is
+judgment. The consolidated index is `docs/references.md`; the per-citation audit is
 `docs/citation-audit.md`. The ITIL 4, NIST and DoD alignment is in `docs/07-itil4-alignment.md`.
 
 ### If you are evaluating an approach
@@ -60,7 +60,7 @@ Read it straight through in this order. It is written to be read, not just refer
 9. [`checklists/outage-assessment.md`](checklists/outage-assessment.md) — how the repair estimate that the failover decision gate consumes is actually produced
 10. [`checklists/contact-roster.md`](checklists/contact-roster.md) — who is notified, in what order, and how they are reached; the contact-list appendix NIST SP 800-34 expects
 11. [`docs/00-plan-approval.md`](docs/00-plan-approval.md) — the approval statement that makes it a plan rather than a design; unsigned here by design. It closes the plan because it affirms that everything above it is complete
-12. [`checklists/contingency-training.md`](checklists/contingency-training.md) — the training programme NIST SP 800-34 keeps separate from drills: annual syllabus, new-joiner path, closed-book evidence. It runs against the approved plan, so it follows the signature
+12. [`checklists/contingency-training.md`](checklists/contingency-training.md) — the training program NIST SP 800-34 keeps separate from drills: annual syllabus, new-joiner path, closed-book evidence. It runs against the approved plan, so it follows the signature
 
 ### If you are building a real plan from this
 
@@ -102,7 +102,7 @@ cp terraform/dr-resources.env.example terraform/dr-resources.env
 ## A note on `evidence/`
 
 In **this** repository, `evidence/` is a structural placeholder. Anything added here will be
-clearly-labelled illustrative sample data for the hypothetical corporation.
+clearly-labeled illustrative sample data for the hypothetical corporation.
 
 In **your** copy it becomes the most sensitive directory in the repo. It holds drill timing
 sheets, RPO attestations, the posture log, in-flight concurrent request captures, and
@@ -133,7 +133,7 @@ visualization tiers are pre-provisioned in Phoenix under their own physical name
 configured on **logical host names** that are the same in both regions and resolved
 region-locally — the pattern Oracle documents for EBS business continuity [5] [6] — the
 single largest RTO lever in the plan, worth roughly
-3–5 hours *(unverified: engineering judgement; no documentation found in this revision)*.
+3–5 hours *(unverified: engineering judgment; no documentation found in this revision)*.
 Storage replicates natively per tier: **Volume Group Replication** for block [7], **FSS File
 System Replication** for shared filesystems [8], **Object Storage Replication Policy** for
 batch interchange [9], and **Autonomous Recovery Service** protecting the primary as the
@@ -141,7 +141,7 @@ immutable, ransomware-resistant copy [10] [11] [15] [13]. OCI automatic backups 
 enabled on the standby while the primary uses Recovery Service [14] (the general standby-backup
 capability [12] is conditioned on an Object Storage primary destination), so the Phoenix copy while
 Ashburn is primary is a customer-scheduled RMAN backup of the standby to Object Storage
-*(unverified: engineering judgement)*; after any role change Recovery Service is enabled on the
+*(unverified: engineering judgment)*; after any role change Recovery Service is enabled on the
 new primary [14]. **OCI Full Stack Disaster
 Recovery** orchestrates switchover, failover, and non-disruptive drills [16].
 
@@ -164,7 +164,7 @@ that statement: Work Recovery Time — reconciliation, interface replay, Finance
 the plan's name for NIST's additional processing time. NIST does not use the term WRT, and
 states that RPO "is not considered as part of MTD" [17]. WRT is tracked separately because for
 an ERP it is often larger than RTO, and no infrastructure spend shrinks it *(unverified:
-engineering judgement; no documentation found in this revision)*. Details in
+engineering judgment; no documentation found in this revision)*. Details in
 [`docs/02-mtd-tiers.md`](docs/02-mtd-tiers.md).
 
 ## Postures — spin-up and tear-down
@@ -176,7 +176,7 @@ engineering judgement; no documentation found in this revision)*. Details in
 ```
 
 **The governing rule: tear down compute, never tear down replication.** Replica storage is
-roughly 11% of the DR bill; compute is roughly 46% *(unverified: engineering judgement; no
+roughly 11% of the DR bill; compute is roughly 46% *(unverified: engineering judgment; no
 documentation found in this revision — illustrative cost shape, see `docs/05-cost-and-teardown.md`)*.
 Deleting a replication mechanism to save that line item is a one-way door: disabling Volume
 Group Replication deletes the replica, and re-enabling "starts the replication process from
@@ -234,13 +234,13 @@ latter being the pattern this plan uses. Doc ID 1963472.1 is the earlier Oracle 
 
 ## Status
 
-Design complete; every product-behaviour claim carries a citation and the citation audit
+Design complete; every product-behavior claim carries a citation and the citation audit
 (`docs/citation-audit.md`) records what could and could not be verified. Not validated
-against a live estate — by construction, since the scenario is hypothetical.
+against a live environment — by construction, since the scenario is hypothetical.
 
 Planned build-out:
 
-- [x] Terraform modules for the Phoenix estate and both Ashburn ADs — `terraform/`, **with caveat**:
+- [x] Terraform modules for the Phoenix environment and both Ashburn ADs — `terraform/`, **with caveat**:
       author-only, never applied against a real tenancy (no credentials on this machine, none
       committed here). Every resource is gated behind an explicit apply lock
       (`unlock_apply` + a typed `spend_acknowledgement`, see `terraform/README.md` "Apply
@@ -256,7 +256,7 @@ Planned build-out:
 
 ## Scope and limitations
 
-- Product behaviour reflects OCI and Oracle Database documentation as read on 2026-09-01
+- Product behavior reflects OCI and Oracle Database documentation as read on 2026-09-01
   (see References). **Verify current service limits, replication intervals, and feature
   availability against Oracle documentation for your tenancy** before relying on any
   specific figure — several are explicitly flagged in-line as needing confirmation.
@@ -271,7 +271,7 @@ Planned build-out:
 
 ## References
 
-This document is a synthesis: every statement about product behaviour or a standard is derived
+This document is a synthesis: every statement about product behavior or a standard is derived
 from the sources below, and any statement that could not be traced to a source is marked as
 unverified. Numbers restart per document. The consolidated index is `docs/references.md`.
 
@@ -324,7 +324,7 @@ unverified. Numbers restart per document. The consolidated index is `docs/refere
 
 ### Unverified statements
 
-The following statements are engineering judgement with no supporting documentation found in this revision:
+The following statements are engineering judgment with no supporting documentation found in this revision:
 
 - Logical host names are worth roughly 3–5 hours of RTO ("Design in one paragraph").
 - WRT is often larger than RTO for an ERP and no infrastructure spend shrinks it ("MTD tiers").

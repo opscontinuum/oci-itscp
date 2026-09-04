@@ -260,7 +260,7 @@ resource "oci_core_remote_peering_connection" "phoenix" {
 # ---------------------------------------------------------------------------
 # Network Security Groups — one app-tier, one db-tier, one lb-tier NSG per
 # region, with a representative rule each. Full rule sets belong in
-# checklists/ and are estate-specific; these are the shape, not the whole
+# checklists/ and are environment-specific; these are the shape, not the whole
 # firewall design.
 # ---------------------------------------------------------------------------
 

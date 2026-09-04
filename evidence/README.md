@@ -1,10 +1,10 @@
 # evidence/
 
-Artifacts that turn this plan from a document into a program: proof that the DR estate was
+Artifacts that turn this plan from a document into a program: proof that the DR environment was
 healthy, was tested, and performed as claimed.
 
 > **In this example repository** this directory is a structural placeholder. Anything added
-> here is clearly-labelled illustrative sample data for the hypothetical corporation
+> here is clearly-labeled illustrative sample data for the hypothetical corporation
 > described in the root README. It is not real operational output.
 
 ## What lands here in a real deployment
@@ -60,7 +60,7 @@ this directory **before** any decommission — the step most often skipped.
 
 ## References
 
-This document is a synthesis: every statement about product behaviour or a standard is derived
+This document is a synthesis: every statement about product behavior or a standard is derived
 from the sources below, and any statement that could not be traced to a source is marked as
 unverified. Numbers restart per document. The consolidated index is `docs/references.md`.
 

@@ -3,8 +3,8 @@
 Training is the one of NIST's three TT&E activities that this plan did not evidence. NIST SP
 800-34 Rev. 1 §3.5 treats **testing** (§3.5.1), **training** (§3.5.2) and **exercises** (§3.5.3)
 as distinct activities and lists them on separate rows of its TT&E activity table [1].
-`runbooks/RB-04-dr-drill.md` is the exercise and test programme. This checklist is the training
-programme: who must be trained, on what, by when, and what record proves it.
+`runbooks/RB-04-dr-drill.md` is the exercise and test program. This checklist is the training
+program: who must be trained, on what, by when, and what record proves it.
 
 The requirement, quoted as printed (the doubled "that that" is NIST's) [1]:
 
@@ -17,7 +17,7 @@ NIST gives the reason in the next sentence: the plan may be unavailable "for the
 as a result of the disruption" [1]. That is the standard this checklist evidences — not that a
 person can follow a runbook, but that they can act for the first few hours without one.
 
-## 1. Why the drill programme does not evidence this on its own
+## 1. Why the drill program does not evidence this on its own
 
 `docs/07-itil4-alignment.md` §1a maps RB-04 to NIST SP 800-53 CP-4 and, until this checklist
 existed, also claimed CP-3 on the strength of RB-04 §4's "primary DBA unavailable" inject. Three
@@ -74,7 +74,7 @@ with simulated events incorporated for a high-impact system [1]; CP-3(1) says th
 | **T1** Purpose, scope and tiers | Purpose of the plan | The two-AD-plus-one-region design and why the likely and catastrophic failures are separated; the four MTD tiers and that MTD = RTO + WRT is this plan's decomposition; the four postures and the rule that tear-down never touches replication | `README.md`, `docs/02-mtd-tiers.md` §1–§2, `runbooks/RB-05-replication-lifecycle.md` §1 | Briefing, 60 min |
 | **T2** Roles, authority and the decision gate | Individual responsibilities — Activation and Notification | The authority table row by row; the five standing decisions; the RB-02 §0 gate and why declaring late burns MTD margin; the two decisions that stop a failover (RPO breach, period close) | `checklists/dr-authority-matrix.md`, `runbooks/RB-02-failover.md` §0 | Briefing, 60 min |
 | **T3** Coordination, communication and reporting | Cross-team coordination and communication; Reporting procedures | How a disaster is declared and by whom; the bridge and channels; what the data-loss statement is, who produces it and who receives it; what is escalated to the business (an MTD breach is escalated "immediately — do not absorb it silently", RB-02 §7b); what lands in `evidence/` and why | `runbooks/RB-02-failover.md` §1, §6, §7b, §8; `evidence/README.md` | Briefing, 45 min |
-| **T4** Security requirements during recovery and drills | Security requirements | The one-way-door catalogue and the `--confirm` guard; the drill isolation controls and why a drill that transmits a real payment file is worse than no drill; `evidence/` sensitivity and retention; credentials and the Oracle Support severity-1 path | `docs/03-replication-matrix.md` §2, `runbooks/RB-04-dr-drill.md` §Isolation, `evidence/README.md` | Briefing, 45 min |
+| **T4** Security requirements during recovery and drills | Security requirements | The one-way-door catalog and the `--confirm` guard; the drill isolation controls and why a drill that transmits a real payment file is worse than no drill; `evidence/` sensitivity and retention; credentials and the Oracle Support severity-1 path | `docs/03-replication-matrix.md` §2, `runbooks/RB-04-dr-drill.md` §Isolation, `evidence/README.md` | Briefing, 45 min |
 | **T5** Team-specific processes | Team-specific processes — Recovery and Reconstitution | Role-specific walk-through of RB-02 (failover), RB-01 (switchover), RB-03 (failback), RB-04 (drill), RB-05 (lifecycle), taken with the documents open, ending with the role's closed-book card from §6 | The runbooks, `checklists/pre-failover-precheck.md`, `checklists/drill-timing-sheet.md` | Instruction, 90–120 min per tier |
 | **T6** Simulated event | Individual responsibilities — Recovery and Reconstitution; CP-3(1) simulated events [2] | A scripted scenario (regional loss during period close; AD-1 loss with FSFO promotion; drill in progress when an incident hits) talked through by the trainee **from memory** with the assessor scoring the §6 card. This is the closed-book check, not a tabletop exercise: one person, one role, no equipment | §6 role cards | Assessed walk-through, 30 min |
 
@@ -82,8 +82,8 @@ with simulated events incorporated for a high-impact system [1]; CP-3(1) says th
 T1–T6 with T5 in full for the role's runbook sections. Business tier: T1–T3, T5 (WRT and
 sign-off sections), T6. Awareness: T1 only.
 
-**Cadence — this plan's organisation-defined values.** NIST SP 800-34 says "at least annually"
-[1]; SP 800-53 CP-3 a.3 leaves the frequency to the organisation [2]. This plan sets:
+**Cadence — this plan's organization-defined values.** NIST SP 800-34 says "at least annually"
+[1]; SP 800-53 CP-3 a.3 leaves the frequency to the organization [2]. This plan sets:
 
 - every role holder, primary and deputy: T1–T6 for their tier **within 12 months** of their last
   completion, and never later than 12 months after appointment;
@@ -101,7 +101,7 @@ sign-off sections), T6. Awareness: T1 only.
 DBA, Windows/infra or network on-call rota. The appointment date is the date the authority matrix
 or contact roster is changed, or the date they first appear on the rota, whichever is earlier.
 
-**Deadline — this plan's organisation-defined period for CP-3 a.1 [2].** Complete the path
+**Deadline — this plan's organization-defined period for CP-3 a.1 [2].** Complete the path
 **within 30 calendar days of appointment, and before the first on-call shift or first sole
 holding of the role, whichever comes first.** Until then the person is *in training*: they may
 shadow, but a trained primary or deputy must remain reachable for the role. A new DBA on-call
@@ -283,7 +283,7 @@ or not a drill is running.
 
 ## References
 
-This document is a synthesis: every statement about product behaviour or a standard is derived
+This document is a synthesis: every statement about product behavior or a standard is derived
 from the sources below, and any statement that could not be traced to a source is marked as
 unverified. Numbers restart per document. The consolidated index is `docs/references.md`.
 
@@ -321,9 +321,9 @@ unverified. Numbers restart per document. The consolidated index is `docs/refere
 ### Unverified statements
 
 - §3, §4: the 12-month refresher, 30-day new-joiner deadline, 30-day delta-briefing window and
-  14-day re-test are this plan's own organisation-defined values for the assignments NIST leaves
+  14-day re-test are this plan's own organization-defined values for the assignments NIST leaves
   open; no source prescribes them.
-- §6: the pass/prompted/missed scoring and the role-card item lists are engineering judgement
+- §6: the pass/prompted/missed scoring and the role-card item lists are engineering judgment
   about what a role holder needs in the first few hours, derived from the runbooks cited on each
   card, not from a NIST or Oracle source.
 

@@ -30,7 +30,7 @@ appropriate" (Appendix A.2, printed page A.2-6) [1].
 | **Designated authority** (footnote 31, printed page 36) [1] | **DR Commander** | The declaration decision, and only that decision. Does not run the recovery | `{name}` |
 | **ISCP Director** | **DR Commander** (same person) | Overall management responsibility for the plan; owns the annual review | `{name}` |
 | **ISCP Coordinator** | **DR Coordinator** | Running the recovery: sequence, escalations, cross-team coordination, status to the bridge | `{name}` |
-| **Information System Owner** | **Application owner (EBS)** | The system, its interconnections, and the reassessment judgement at Reconstitution | `{name}` |
+| **Information System Owner** | **Application owner (EBS)** | The system, its interconnections, and the reassessment judgment at Reconstitution | `{name}` |
 | **Business unit POC** | **Business owner** | Tier assignment, the MTD targets, and the RPO-breach decision (RB-02 §7d) | `{name}` |
 | **Technical recovery POC** | **DBA on-call** | The database role transition and the data-currency evidence | `{name}` |
 
@@ -40,7 +40,7 @@ budget should not simultaneously be running the storage activation sequence. Whe
 holds both, the decision gate in [`RB-02`](../runbooks/RB-02-failover.md) §0 gets compressed
 into whatever the recovery work leaves time for.
 
-*(Unverified: the split is this plan's engineering judgement. NIST names both roles and does
+*(Unverified: the split is this plan's engineering judgment. NIST names both roles and does
 not state whether one individual may hold both.)*
 
 ---
@@ -72,7 +72,7 @@ decides not to declare, that is the decision. Escalating to the next name to get
 answer is not succession; the route for disagreement is the business owner and the standing
 decisions in [`dr-authority-matrix.md`](dr-authority-matrix.md).
 
-*(Unverified: the 10- and 15-minute intervals are this plan's engineering judgement, chosen
+*(Unverified: the 10- and 15-minute intervals are this plan's engineering judgment, chosen
 to fit inside the RB-02 §0 gate. No source read in this revision specifies succession
 intervals.)*
 
@@ -84,7 +84,7 @@ NIST lists fifteen candidate team types and is explicit that they are candidates
 "will require some or all of the following groups", and "The size of each team, team titles,
 and hierarchy designs depend on the organization" (§3.4.6, printed page 26) [1].
 
-A cloud estate with no physical access removes several outright. Stated with reasons rather
+A cloud environment with no physical access removes several outright. Stated with reasons rather
 than silently dropped:
 
 | NIST team (§3.4.6) [1] | Here | Lead | Notes |
@@ -100,9 +100,9 @@ than silently dropped:
 | Test team | folded into **EBS functional** | EBS functional lead | Validation is the functional team's signature ([`docs/10`](../docs/10-phase-reconstitution.md) §3.1) |
 | Telecommunications team | **Not applicable** | — | No owned circuits; connectivity is OCI backbone (`docs/01` §1, A6) |
 | Transportation and relocation team | **Not applicable** | — | No physical relocation ([`docs/08`](../docs/08-phase-activation-notification.md) §4) |
-| Physical / personnel security team | **Not applicable** at system level | — | Oracle's responsibility for the regions; organisation's for offices |
+| Physical / personnel security team | **Not applicable** at system level | — | Oracle's responsibility for the regions; organization's for offices |
 | Procurement team | **Not staffed** | — | Escalation to the OCI account team POC instead ([`contact-roster.md`](contact-roster.md) §5) |
-| Media relations team | **Out of scope** | — | Organisation-wide function; escalation destination only (§5) |
+| Media relations team | **Out of scope** | — | Organization-wide function; escalation destination only (§5) |
 | Legal affairs team | **Out of scope** | — | Same |
 
 ### 3.1 Every team leader has a named alternate
@@ -135,10 +135,10 @@ leaving the cell optimistic.
 > vendors."
 > — §3.4.6, printed page 26 [1]
 
-Two cases this estate should have an answer for, both currently unanswered:
+Two cases this environment should have an answer for, both currently unanswered:
 
 - **Geographic concentration.** If the recovery teams sit in one office or one time zone, an
-  event affecting that location affects the plan as well as the estate.
+  event affecting that location affects the plan as well as the environment.
 - **Vendor fallback.** Whether Oracle Advanced Customer Support or a partner can execute any
   part of the recovery, and under what contract.
 
@@ -170,7 +170,7 @@ informed.
 | **Network** | S — connectivity signal to the assessment | **L** — steering and load balancer | S — retires temporary answers |
 | **EBS functional** | I | **L** — Work Recovery Time activities (RB-02 §6) | **L** — signs the validation pack |
 | **Business owner** | S — consulted if reachable in 15 min | **L** — RPO-breach decision (RB-02 §7d) | **L** — accepts service restoration |
-| **Finance / CFO delegate** | S — period-close judgement | **L** — clears Concurrent Managers after an RPO breach | I |
+| **Finance / CFO delegate** | S — period-close judgment | **L** — clears Concurrent Managers after an RPO breach | I |
 | **Risk / audit** | I | I | S — receives evidence; owns the plan-change route |
 
 ---
@@ -208,7 +208,7 @@ Signed: Business owner __________  CIO __________  Risk __________  Date _______
 
 ## References
 
-This document is a synthesis: every statement about product behaviour or a standard is derived
+This document is a synthesis: every statement about product behavior or a standard is derived
 from the sources below, and any statement that could not be traced to a source is marked as
 unverified. Numbers restart per document. The consolidated index is `docs/references.md`.
 
@@ -245,14 +245,14 @@ unverified. Numbers restart per document. The consolidated index is `docs/refere
 ### Unverified statements
 
 - Separating the DR Commander (declares) from the DR Coordinator (recovers) is this plan's
-  engineering judgement. NIST names an ISCP Director and an ISCP Coordinator and does not
+  engineering judgment. NIST names an ISCP Director and an ISCP Coordinator and does not
   state whether one individual may hold both.
 - The succession intervals in §2 (10 minutes, then 15) are this plan's own figures, chosen to
   fit inside the ten-minute decision gate in `RB-02` §0. No source read in this revision
   specifies succession intervals.
 - The team consolidations in §3 — folding the OS administration team into Application tier,
   the LAN/WAN team into Network, and the test team into EBS functional — are this plan's
-  tailoring of NIST's candidate list to an estate of roughly five application nodes. NIST
+  tailoring of NIST's candidate list to an environment of roughly five application nodes. NIST
   permits tailoring and does not prescribe these particular merges.
 - The "not applicable" verdicts for the telecommunications, transportation and relocation, and
   physical security teams follow from the cloud-hosted scope stated in `docs/01` §1, not from

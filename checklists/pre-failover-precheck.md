@@ -60,7 +60,7 @@ Record results in `evidence/precheck-YYYY-MM-DD.md`.
 
 ## References
 
-This document is a synthesis: every statement about product behaviour or a standard is derived
+This document is a synthesis: every statement about product behavior or a standard is derived
 from the sources below, and any statement that could not be traced to a source is marked as
 unverified. Numbers restart per document. The consolidated index is `docs/references.md`.
 
@@ -71,7 +71,7 @@ unverified. Numbers restart per document. The consolidated index is `docs/refere
 3. *Be Warned: cmclean.sql Is Dangerous!* Maris Elsins, Pythian blog, 2013-07-18, accessed 2026-09-01.
    <https://www.pythian.com/blog/be-warned-cmclean-sql-is-dangerous/> — Supports: corroborates the title of My Oracle Support Doc ID 134007.1 and states the note "is valid for Applications versions 10.7 to 12.1.3" (§C).
 4. *Switchover and Failover Operations.* Oracle Data Guard Broker 19c, E96245-04, accessed 2026-09-01.
-   <https://docs.oracle.com/en/database/oracle/oracle-database/19/dgbkr/using-data-guard-broker-to-manage-switchovers-failovers.html> — Supports: fast-start failover behaviour is target- and state-dependent — a switchover or manual failover can only target the pre-specified FSFO target while FSFO is enabled (§A).
+   <https://docs.oracle.com/en/database/oracle/oracle-database/19/dgbkr/using-data-guard-broker-to-manage-switchovers-failovers.html> — Supports: fast-start failover behavior is target- and state-dependent — a switchover or manual failover can only target the pre-specified FSFO target while FSFO is enabled (§A).
 5. *Redo Transport Services.* Oracle Data Guard Concepts and Administration 19c, accessed 2026-09-01.
    <https://docs.oracle.com/en/database/oracle/oracle-database/19/sbydb/oracle-data-guard-redo-transport-services.html> — Supports: "Oracle recommends that the NET_TIMEOUT attribute be specified whenever the synchronous redo transport mode is used" (§A).
 6. *Scenarios Using the DGMGRL Command-Line Interface.* Oracle Data Guard Broker 19c, E96245-04, accessed 2026-09-01.

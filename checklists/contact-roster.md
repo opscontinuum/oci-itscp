@@ -193,7 +193,7 @@ One row per interconnection — RB-02 §6 is where inbound interface files are r
 replicated Object Storage bucket and untransmitted outbound files are re-sent, so every partner
 named there needs a row here.
 
-| Organisation / interconnection | Contact | How | Reference to quote | Verified |
+| Organization / interconnection | Contact | How | Reference to quote | Verified |
 |---|---|---|---|---|
 | Oracle Support — Severity 1 | Support hotline | (555) 010-0200 · My Oracle Support portal | CSI `00000000` · SR template pre-registered for `EBSPROD_IAD`/`EBSPROD_PHX` | ____ |
 | Oracle Cloud Infrastructure account team | Named TAM: Placeholder Name | (555) 010-0201 · tam@vendor.example | Tenancy `{tenancy name}` | ____ |
@@ -240,7 +240,7 @@ Roster verified by: DR Coordinator __________  Date __________  Next review due 
 
 ## References
 
-This document is a synthesis: every statement about product behaviour or a standard is derived
+This document is a synthesis: every statement about product behavior or a standard is derived
 from the sources below, and any statement that could not be traced to a source is marked as
 unverified. Numbers restart per document. The consolidated index is `docs/references.md`.
 

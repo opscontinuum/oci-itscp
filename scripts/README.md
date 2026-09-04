@@ -80,7 +80,7 @@ outside the guard's reach. That is a gap, recorded here rather than papered over
 | Flag | Meaning | Where it is required |
 |---|---|---|
 | `--help`, `-h` | Print usage and exit 0. | Every script. |
-| `--dry-run` | Print every OCI call without issuing one. Needs no credentials and reaches no tenancy. | Every script that mutates, and every read-only script that walks the estate. |
+| `--dry-run` | Print every OCI call without issuing one. Needs no credentials and reaches no tenancy. | Every script that mutates, and every read-only script that walks the environment. |
 | `--confirm` | Acknowledge a one-way door. | The three storage-failover scripts. `decommission-dr.sh` spells it `--confirm-unprotected`. |
 | `--ticket` | Change reference, written into the evidence record. | Every one-way door. |
 | `--approver` | Name of the signing approver. | `decommission-dr.sh` only, which also needs written sign-off from the business owner and the risk function. |

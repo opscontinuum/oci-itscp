@@ -25,7 +25,7 @@ variable "run_command_plugin_name" {
 
 variable "windows_image_id" {
   type        = string
-  description = "OCID of the Windows Server custom image (MKS Toolkit + Oracle Cloud Agent baked in — docs/01-architecture.md A3). No default: this is estate-specific and must be supplied."
+  description = "OCID of the Windows Server custom image (MKS Toolkit + Oracle Cloud Agent baked in — docs/01-architecture.md A3). No default: this is environment-specific and must be supplied."
   default     = ""
 }
 

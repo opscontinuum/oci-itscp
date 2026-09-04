@@ -161,7 +161,7 @@ Every drill produces, in `evidence/drill-YYYY-MM-DD/`:
 
 ## References
 
-This document is a synthesis: every statement about product behaviour or a standard is derived
+This document is a synthesis: every statement about product behavior or a standard is derived
 from the sources below, and any statement that could not be traced to a source is marked as
 unverified. Numbers restart per document. The consolidated index is `docs/references.md`.
 
@@ -178,7 +178,7 @@ unverified. Numbers restart per document. The consolidated index is `docs/refere
 
 - §1: what the built-in ExaDB-D / ExaDB-C@C drill plan groups actually do — not documented in a fetched page; Level 1 must verify empirically.
 - §2: `SITENAME` is the internal profile name for the Site Name profile option — rests on a search snippet only; the fetched 12.1 profile reference page does not contain the entry.
-- §Isolation: manual checks (outbound endpoint redirection, Oracle Alert, BI Publisher, SOA/ISG, printer mapping, drill LB registration) are engineering judgement about what a real drill must isolate, not sourced from a single Oracle drill-isolation document.
+- §Isolation: manual checks (outbound endpoint redirection, Oracle Alert, BI Publisher, SOA/ISG, printer mapping, drill LB registration) are engineering judgment about what a real drill must isolate, not sourced from a single Oracle drill-isolation document.
 
 [1]: https://docs.oracle.com/en/database/oracle/oracle-database/19/sbydb/managing-oracle-data-guard-physical-standby-databases.html "Managing Physical and Snapshot Standby Databases — Oracle Data Guard Concepts and Administration 19c"
 [2]: https://docs.oracle.com/en/database/oracle/oracle-database/19/dgbkr/examples-using-data-guard-broker-DGMGRL-utility.html "Scenarios Using the DGMGRL Command-Line Interface — Oracle Data Guard Broker 19c"

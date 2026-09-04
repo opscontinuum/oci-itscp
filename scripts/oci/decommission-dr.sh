@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# decommission-dr.sh — full decommission of the Phoenix DR estate.
+# decommission-dr.sh — full decommission of the Phoenix DR environment.
 # Implements runbooks/RB-05-replication-lifecycle.md §5. THE MOST DANGEROUS
 # SCRIPT IN THIS REPOSITORY: it deliberately removes protection.
 #
@@ -11,7 +11,7 @@
 #   2. Evidence is archived and verified BEFORE anything is removed (RB-05 §5
 #      step 8, moved first because it is the step that gets skipped).
 #   3. Orchestration is destroyed FIRST, so nothing can fail over into a
-#      half-dismantled estate (RB-05 §5 step 1).
+#      half-dismantled environment (RB-05 §5 step 1).
 #   4. Autonomous Recovery Service backups are RETAINED. This script contains
 #      no verb that deletes a protected database or its backups, and it
 #      asserts that about itself before running (RB-05 §5 step 6).
@@ -104,7 +104,7 @@ require_signoff() {
 REFUSED: decommission requires --confirm-unprotected, --approver and --ticket.
 
 This script deliberately REMOVES disaster recovery protection for the EBS
-estate. Re-establishing it afterwards is a full RB-05 §2 build: days of
+environment. Re-establishing it afterwards is a full RB-05 §2 build: days of
 baseline copies and a Level 2 drill before it can be called protected again.
 
 It requires written sign-off from the business owner AND the risk function
@@ -313,6 +313,6 @@ if [[ $DRY_RUN -eq 0 && -f "$LOG" && $STOP_AFTER -ge 7 ]]; then
   cp "$LOG" "${ARCHIVE%.tar.gz}-decommission-log.md"
 fi
 
-banner "Decommission $([[ $STOP_AFTER -ge 7 ]] && echo COMPLETE || echo "paused after stage $STOP_AFTER"). The EBS estate has NO cross-region protection."
+banner "Decommission $([[ $STOP_AFTER -ge 7 ]] && echo COMPLETE || echo "paused after stage $STOP_AFTER"). The EBS environment has NO cross-region protection."
 echo "Log: $LOG · Evidence archive: $ARCHIVE"
-echo "Update docs/02-mtd-tiers.md: every tier is now Tier 3 (backup and restore) until a new estate is built (RB-05 §2)."
+echo "Update docs/02-mtd-tiers.md: every tier is now Tier 3 (backup and restore) until a new environment is built (RB-05 §2)."

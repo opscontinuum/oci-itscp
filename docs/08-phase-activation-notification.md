@@ -44,7 +44,7 @@ three, but not in that order — see §3.
 
 **The non-activation exit is the common one and this plan treats it as a first-class
 outcome.** Most major incidents are resolved in place. RB-02 §0 exists to stop a reflexive
-failover, not to authorise one.
+failover, not to authorize one.
 
 ---
 
@@ -70,11 +70,11 @@ assembling people is reversible and cheap, whereas a serial assessment-then-noti
 spends the MTD budget before anyone has joined the bridge. Tier 0's MTD is two hours
 (`docs/02` §2); a fifteen-minute serial notification chain is 12.5% of it.
 
-*(Unverified: this ordering is this plan's engineering judgement. NIST describes the
+*(Unverified: this ordering is this plan's engineering judgment. NIST describes the
 sequential form and does not address running the two concurrently; nothing in §4.2 forbids
 it, and nothing read in this revision endorses it.)*
 
-### 3.2 Assessment is scoped to a cloud estate, and that removes most of NIST's list
+### 3.2 Assessment is scoped to a cloud environment, and that removes most of NIST's list
 
 NIST's minimum assessment areas assume a physical site the assessor can walk into —
 "structural integrity of computer room, condition of electric power, telecommunications, and
@@ -94,7 +94,7 @@ with the reason in each case, rather than a silent omission.
 | "Instructions to prepare for relocation for estimated time period" (§4.2.2, printed page 38) [1] | **Not applicable** | Recovery is to `us-phoenix-1`, not to a physical alternate site. No person relocates. Already recorded as not applicable in [`contact-roster.md`](../checklists/contact-roster.md) §4. |
 | Transportation and relocation team (§3.4.6, printed page 26) [1] | **Not applicable** | Same reason. |
 | Shipment of backup media from offsite storage (§4.3.1, printed page 39) [1] | **Not applicable** | Backups are in Autonomous Recovery Service and Object Storage, reachable over the network. See [`docs/03`](03-replication-matrix.md) §1. |
-| Media relations and legal affairs teams (§3.4.6) [1] | **Out of scope** | Organisation-wide functions, not system-level ones. Named as escalation destinations in [`roles-and-responsibilities.md`](../checklists/roles-and-responsibilities.md) §5, not staffed by this plan. |
+| Media relations and legal affairs teams (§3.4.6) [1] | **Out of scope** | Organization-wide functions, not system-level ones. Named as escalation destinations in [`roles-and-responsibilities.md`](../checklists/roles-and-responsibilities.md) §5, not staffed by this plan. |
 
 ---
 
@@ -111,7 +111,7 @@ Then go to [`docs/09-phase-recovery.md`](09-phase-recovery.md).
 
 ## References
 
-This document is a synthesis: every statement about product behaviour or a standard is derived
+This document is a synthesis: every statement about product behavior or a standard is derived
 from the sources below, and any statement that could not be traced to a source is marked as
 unverified. Numbers restart per document. The consolidated index is `docs/references.md`.
 
@@ -156,13 +156,13 @@ unverified. Numbers restart per document. The consolidated index is `docs/refere
 ### Unverified statements
 
 - Running outage assessment and the call tree concurrently rather than sequentially (§3.1) is
-  this plan's engineering judgement. NIST describes the sequential form; no source read in
+  this plan's engineering judgment. NIST describes the sequential form; no source read in
   this revision addresses the concurrent form either way.
 - The ten-minute budget for the decision gate, and the share of the Tier 0 MTD that a
   sequential notification chain would consume (§3.1), are this plan's own figures, derived
   from the tiers in `docs/02` §2. They are design targets, not measurements, until a Level 2
   drill times them (`runbooks/RB-04-dr-drill.md` §5).
 - The claim that assembling people is "reversible and cheap" relative to spending MTD budget
-  (§3.1) is a judgement about this organisation's incident culture, not a sourced statement.
+  (§3.1) is a judgment about this organization's incident culture, not a sourced statement.
 
 [1]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-34r1.pdf "NIST SP 800-34 Rev. 1"

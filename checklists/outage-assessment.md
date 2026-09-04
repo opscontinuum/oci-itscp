@@ -12,10 +12,10 @@ permit, with personnel safety remaining the highest priority" (printed page 38) 
 
 > ### Safety first, and it is not a formality
 >
-> NIST puts personnel safety above assessment speed [1]. In this estate no assessor is
+> NIST puts personnel safety above assessment speed [1]. In this environment no assessor is
 > physically near the affected equipment — Oracle operates the regions — so the safety
-> constraint usually binds on the *people*, not the estate: a regional event that took out a
-> data centre may also have taken out an office, a home, or a person. If an assessor is in a
+> constraint usually binds on the *people*, not the environment: a regional event that took out a
+> data center may also have taken out an office, a home, or a person. If an assessor is in a
 > disrupted location, they are not an assessor. Pass to the alternate in
 > [`roles-and-responsibilities.md`](roles-and-responsibilities.md) §3.1 and say why.
 
@@ -49,7 +49,7 @@ from here entirely.
 
 ---
 
-## 3. NIST's minimum areas, in a cloud estate
+## 3. NIST's minimum areas, in a cloud environment
 
 NIST names seven minimum areas (§4.2.3, printed page 38) [1]. Three assume a building the
 assessor can walk into. Stated with the reason in each case rather than dropped:
@@ -142,8 +142,8 @@ baseline copies of every storage tier ([`RB-03`](../runbooks/RB-03-failback.md) 
 [`docs/03`](../docs/03-replication-matrix.md) §2), which is expensive but survivable. A
 late declaration costs the MTD, which is the commitment the business signed.
 
-*(Unverified: the decision rule in this table, and the judgement that a late declaration is
-worse than an unnecessary failover, are this plan's engineering judgement. NIST requires that
+*(Unverified: the decision rule in this table, and the judgment that a late declaration is
+worse than an unnecessary failover, are this plan's engineering judgment. NIST requires that
 an estimated time to restore be produced and does not say what to do when it cannot be.)*
 
 ---
@@ -172,7 +172,7 @@ for the role.
 ## 7. Assessment record
 
 Copy into `evidence/` as `outage-assessment-<UTC timestamp>.md`. Complete it even when the
-decision is *do not declare* — a near-miss is the cheapest evidence this programme ever gets.
+decision is *do not declare* — a near-miss is the cheapest evidence this program ever gets.
 
 ```
 Incident ....................... {id}
@@ -204,7 +204,7 @@ Decision taken ................. {declared | not declared} at {timestamp} by {na
 
 ## References
 
-This document is a synthesis: every statement about product behaviour or a standard is derived
+This document is a synthesis: every statement about product behavior or a standard is derived
 from the sources below, and any statement that could not be traced to a source is marked as
 unverified. Numbers restart per document. The consolidated index is `docs/references.md`.
 
@@ -240,15 +240,15 @@ unverified. Numbers restart per document. The consolidated index is `docs/refere
 ### Unverified statements
 
 - The time budget in §1, and the placement of the assessment inside the ten-minute gate, are
-  this plan's engineering judgement, derived from the gate in `RB-02` §0. NIST requires only
+  this plan's engineering judgment, derived from the gate in `RB-02` §0. NIST requires only
   that assessment be "completed as quickly as the given conditions permit".
 - The estimate-band decision table in §5, including the rule that an unknown estimate on a
-  regional radius means declare, is this plan's engineering judgement. NIST does not address
+  regional radius means declare, is this plan's engineering judgment. NIST does not address
   the unknown-estimate case.
 - The blast-radius bands in §4 step 3 are indicative durations, not measurements. They become
   credible only once a Level 2 drill has timed the corresponding recovery paths
   (`runbooks/RB-04-dr-drill.md` §5).
-- The judgement that a logical or cyber event replicates faithfully to the standby and is
+- The judgment that a logical or cyber event replicates faithfully to the standby and is
   therefore outside this gate follows from the design in `docs/01` and `docs/03`; it is stated
   there and restated here, not independently sourced in this document.
 

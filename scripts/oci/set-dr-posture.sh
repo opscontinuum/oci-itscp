@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# set-dr-posture.sh — switch the Phoenix DR estate between named postures.
+# set-dr-posture.sh — switch the Phoenix DR environment between named postures.
 #
 # Postures (see runbooks/RB-05-replication-lifecycle.md §1):
 #   hot   — PHX Windows compute running, ExaDB-D at production OCPU.  Tier 0 readiness.

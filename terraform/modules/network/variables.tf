@@ -75,7 +75,7 @@ variable "phoenix_vcn_dns_label" {
 }
 
 variable "phoenix_app_subnets" {
-  description = "App-tier subnets in Phoenix. us-phoenix-1 is modelled here with a single AD by default (DR_AD_COUNT); extend the map if your tenancy has more than one AD in this region — confirm the AD count for your tenancy before relying on this default."
+  description = "App-tier subnets in Phoenix. us-phoenix-1 is modeled here with a single AD by default (DR_AD_COUNT); extend the map if your tenancy has more than one AD in this region — confirm the AD count for your tenancy before relying on this default."
   type = map(object({
     availability_domain = string
     cidr_block          = string
