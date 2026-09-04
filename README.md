@@ -55,9 +55,12 @@ Read it straight through in this order. It is written to be read, not just refer
 4. [`runbooks/`](runbooks/) — what actually happens during a switchover, failover, failback, and drill
 5. [`docs/06-test-environments.md`](docs/06-test-environments.md) — what each test tier proves, and what none of them can
 6. [`docs/07-itil4-alignment.md`](docs/07-itil4-alignment.md) — how the vocabulary maps to ITIL 4, ISO 22301, NIST and DoD instruments
-7. [`checklists/contact-roster.md`](checklists/contact-roster.md) — who is notified, in what order, and how they are reached; the contact-list appendix NIST SP 800-34 expects
-8. [`docs/00-plan-approval.md`](docs/00-plan-approval.md) — the approval statement that makes it a plan rather than a design; unsigned here by design. It closes the plan because it affirms that everything above it is complete
-9. [`checklists/contingency-training.md`](checklists/contingency-training.md) — the training programme NIST SP 800-34 keeps separate from drills: annual syllabus, new-joiner path, closed-book evidence. It runs against the approved plan, so it follows the signature
+7. [`docs/08-phase-activation-notification.md`](docs/08-phase-activation-notification.md), [`docs/09-phase-recovery.md`](docs/09-phase-recovery.md), [`docs/10-phase-reconstitution.md`](docs/10-phase-reconstitution.md) — the runbooks re-indexed by the three phases NIST SP 800-34 expects an ISCP to describe, one document per phase, each routing to the runbook that does the work
+8. [`checklists/roles-and-responsibilities.md`](checklists/roles-and-responsibilities.md) — who holds each role, who succeeds them, and what each team owns in each phase
+9. [`checklists/outage-assessment.md`](checklists/outage-assessment.md) — how the repair estimate that the failover decision gate consumes is actually produced
+10. [`checklists/contact-roster.md`](checklists/contact-roster.md) — who is notified, in what order, and how they are reached; the contact-list appendix NIST SP 800-34 expects
+11. [`docs/00-plan-approval.md`](docs/00-plan-approval.md) — the approval statement that makes it a plan rather than a design; unsigned here by design. It closes the plan because it affirms that everything above it is complete
+12. [`checklists/contingency-training.md`](checklists/contingency-training.md) — the training programme NIST SP 800-34 keeps separate from drills: annual syllabus, new-joiner path, closed-book evidence. It runs against the approved plan, so it follows the signature
 
 ### If you are building a real plan from this
 
